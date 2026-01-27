@@ -204,11 +204,13 @@ def add_project_code_prefix_step0003(
 
 def convert_org_table_tsv(objBaseDirectoryPath: Path) -> None:
     objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "管轄PJ表.csv"
-    objOrgTableStep0001Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0001.tsv")
-    objOrgTableStep0002Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0002.tsv")
-    objOrgTableStep0003Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0003.tsv")
-    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
-    objOrgTableStep0004Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0004.tsv")
+    objTempOrgTableDirectoryPath: Path = objBaseDirectoryPath / "temp" / "管轄PJ表"
+    objTempOrgTableDirectoryPath.mkdir(parents=True, exist_ok=True)
+    objOrgTableStep0001Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0001.tsv"
+    objOrgTableStep0002Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0002.tsv"
+    objOrgTableStep0003Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0003.tsv"
+    objOrgTableTsvPath: Path = objTempOrgTableDirectoryPath / "管轄PJ表.tsv"
+    objOrgTableStep0004Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0004.tsv"
     if objOrgTableCsvPath.exists():
         with open(objOrgTableCsvPath, "r", encoding="utf-8") as objOrgTableCsvFile:
             objOrgTableReader = csv.reader(objOrgTableCsvFile)
@@ -3714,9 +3716,11 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     # 1. 管轄PJ表の再生成（step0004）
     #
     objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "管轄PJ表.csv"
-    objOrgTableStep0004Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0004.tsv")
-    objOrgTableStep0003Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0003.tsv")
-    objOrgTableStep0005Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0005.tsv")
+    objTempOrgTableDirectoryPath: Path = objBaseDirectoryPath / "temp" / "管轄PJ表"
+    objTempOrgTableDirectoryPath.mkdir(parents=True, exist_ok=True)
+    objOrgTableStep0004Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0004.tsv"
+    objOrgTableStep0003Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0003.tsv"
+    objOrgTableStep0005Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0005.tsv"
     if objOrgTableCsvPath.exists():
         with open(objOrgTableCsvPath, "r", encoding="utf-8") as objOrgTableCsvFile:
             objOrgTableReader = csv.reader(objOrgTableCsvFile)
@@ -3866,7 +3870,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         if pszPrefixStep07 and pszPrefixStep07 not in objStep07PrefixToName:
             objStep07PrefixToName[pszPrefixStep07] = pszNameStep07
 
-    objOrgTableStep0006DatedPath: Path = objOrgTableCsvPath.with_name(
+    objOrgTableStep0006DatedPath: Path = objTempOrgTableDirectoryPath / (
         f"管轄PJ表_step0006_{iFileYear}年{iFileMonth:02d}月.tsv"
     )
     if objOrgTableStep0005Path.exists():
@@ -3936,7 +3940,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     #
     objOrgTableBillingMap: Dict[str, str] = {}
     objOrgTableGroupMap: Dict[str, str] = {}
-    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
+    objOrgTableTsvPath: Path = objTempOrgTableDirectoryPath / "管轄PJ表.tsv"
     if objOrgTableTsvPath.exists():
         with open(objOrgTableTsvPath, "r", encoding="utf-8") as objOrgTableFile:
             objOrgTableReader = csv.reader(objOrgTableFile, delimiter="\t")
@@ -4165,9 +4169,9 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     #
     # 9. 管轄PJ表_step0007.tsv の生成
     #
-    objOrgTableStep0007Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0007.tsv")
-    objOrgTableStep0008Path: Path = objOrgTableCsvPath.with_name("管轄PJ表_step0008.tsv")
-    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
+    objOrgTableStep0007Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0007.tsv"
+    objOrgTableStep0008Path: Path = objTempOrgTableDirectoryPath / "管轄PJ表_step0008.tsv"
+    objOrgTableTsvPath: Path = objTempOrgTableDirectoryPath / "管轄PJ表.tsv"
     if objOrgTableStep0003Path.exists():
         shutil.copyfile(objOrgTableStep0003Path, objOrgTableStep0007Path)
         objExistingProjectCodes: set[str] = set()
@@ -4287,8 +4291,11 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
 
 
 def load_org_table_billing_map_for_step11() -> Dict[str, str]:
-    objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "管轄PJ表.csv"
-    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
+    objBaseDirectoryPath: Path = Path(__file__).resolve().parent
+    objOrgTableCsvPath: Path = objBaseDirectoryPath / "管轄PJ表.csv"
+    objTempOrgTableDirectoryPath: Path = objBaseDirectoryPath / "temp" / "管轄PJ表"
+    objTempOrgTableDirectoryPath.mkdir(parents=True, exist_ok=True)
+    objOrgTableTsvPath: Path = objTempOrgTableDirectoryPath / "管轄PJ表.tsv"
     objOrgTableBillingMapExact: Dict[str, str] = {}
     objOrgTableBillingMapPrefix: Dict[str, str] = {}
     if objOrgTableTsvPath.exists():
@@ -4393,8 +4400,11 @@ def write_step11_from_step10_only(pszStep10Path: str) -> int:
 
 
 def load_org_table_billing_map_for_step11() -> Dict[str, str]:
-    objOrgTableCsvPath: Path = Path(__file__).resolve().parent / "管轄PJ表.csv"
-    objOrgTableTsvPath: Path = objOrgTableCsvPath.with_suffix(".tsv")
+    objBaseDirectoryPath: Path = Path(__file__).resolve().parent
+    objOrgTableCsvPath: Path = objBaseDirectoryPath / "管轄PJ表.csv"
+    objTempOrgTableDirectoryPath: Path = objBaseDirectoryPath / "temp" / "管轄PJ表"
+    objTempOrgTableDirectoryPath.mkdir(parents=True, exist_ok=True)
+    objOrgTableTsvPath: Path = objTempOrgTableDirectoryPath / "管轄PJ表.tsv"
     objOrgTableBillingMapExact: Dict[str, str] = {}
     objOrgTableBillingMapPrefix: Dict[str, str] = {}
     if objOrgTableTsvPath.exists():
