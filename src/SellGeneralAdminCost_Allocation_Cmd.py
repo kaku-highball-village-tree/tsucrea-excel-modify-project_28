@@ -4918,6 +4918,7 @@ def create_pj_summary_pl_cr_manhour_excel(
     pszProjectName: str,
     pszInputPath: str,
 ) -> Optional[str]:
+    objSheetNamePattern = re.compile(r"^(P\d{5}|[A-OQ-Z]\d{3})")
     if not os.path.isfile(pszInputPath):
         return None
     pszTemplatePath: str = os.path.join(
@@ -4928,6 +4929,9 @@ def create_pj_summary_pl_cr_manhour_excel(
         return None
     objWorkbook = load_workbook(pszTemplatePath)
     objSheet = objWorkbook.worksheets[0]
+    objSheetNameMatch = objSheetNamePattern.match(pszProjectName)
+    if objSheetNameMatch:
+        objSheet.title = objSheetNameMatch.group(1)
     objRows = read_tsv_rows(pszInputPath)
     for iRowIndex, objRow in enumerate(objRows, start=1):
         for iColumnIndex, pszValue in enumerate(objRow, start=1):
