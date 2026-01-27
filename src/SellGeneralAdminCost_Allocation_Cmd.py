@@ -4860,6 +4860,9 @@ def create_pj_summary_gross_profit_ranking_excel(pszDirectory: str) -> Optional[
 def create_pj_summary_sales_cost_sg_admin_margin_excel(pszDirectory: str) -> Optional[str]:
     objCandidates: List[str] = []
     objPattern = re.compile(r"^0001_PJサマリ_step0009_.*_単月・累計_損益計算書\.tsv$")
+    objSheetNamePattern = re.compile(
+        r"^0001_PJサマリ_step0009_(.+)_単月・累計_損益計算書\.tsv$"
+    )
     for pszName in os.listdir(pszDirectory):
         if objPattern.match(pszName):
             objCandidates.append(pszName)
@@ -4878,6 +4881,9 @@ def create_pj_summary_sales_cost_sg_admin_margin_excel(pszDirectory: str) -> Opt
             objSheet = objWorkbook.worksheets[iIndex]
         else:
             objSheet = objWorkbook.create_sheet()
+        objSheetNameMatch = objSheetNamePattern.match(pszInputName)
+        if objSheetNameMatch:
+            objSheet.title = objSheetNameMatch.group(1)
         objRows = read_tsv_rows(os.path.join(pszDirectory, pszInputName))
         for iRowIndex, objRow in enumerate(objRows, start=1):
             for iColumnIndex, pszValue in enumerate(objRow, start=1):
