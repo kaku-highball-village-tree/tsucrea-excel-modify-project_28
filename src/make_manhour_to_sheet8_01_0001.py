@@ -4081,8 +4081,10 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
                 + "\n",
             )
 
+    objTempDirectoryPath: Path = objBaseDirectoryPath / "temp"
+    objTempDirectoryPath.mkdir(parents=True, exist_ok=True)
     pszStep10OutputPath: str = str(
-        objBaseDirectoryPath
+        objTempDirectoryPath
         / f"工数_{iFileYear}年{iFileMonth:02d}月_step10_各プロジェクトの工数.tsv"
     )
     pszStep10CompanyOutputPath: str = str(
