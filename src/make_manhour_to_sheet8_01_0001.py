@@ -4242,6 +4242,33 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         if objOrgTableStep0008Path.exists() and objOrgTableStep0008Path != objOrgTableTsvPath:
             shutil.copyfile(objOrgTableStep0008Path, objOrgTableTsvPath)
 
+    objTempDirectoryPath: Path = objBaseDirectoryPath / "temp"
+    objTempOrgTableDirectoryPath: Path = objTempDirectoryPath / "管轄PJ表"
+    objTempOrgTableDirectoryPath.mkdir(parents=True, exist_ok=True)
+
+    objOrgTableCopyNames = [
+        "管轄PJ表.csv",
+        "管轄PJ表.tsv",
+        "管轄PJ表_step0001.tsv",
+        "管轄PJ表_step0002.tsv",
+        "管轄PJ表_step0003.tsv",
+        "管轄PJ表_step0004.tsv",
+        "管轄PJ表_step0005.tsv",
+        "管轄PJ表_step0006_2025年04月.tsv",
+        "管轄PJ表_step0006_2025年05月.tsv",
+        "管轄PJ表_step0006_2025年06月.tsv",
+        "管轄PJ表_step0006_2025年07月.tsv",
+        "管轄PJ表_step0006_2025年08月.tsv",
+        "管轄PJ表_step0006_2025年09月.tsv",
+        "管轄PJ表_step0006_2025年10月.tsv",
+        "管轄PJ表_step0007.tsv",
+        "管轄PJ表_step0008.tsv",
+    ]
+    for pszFileName in objOrgTableCopyNames:
+        objSourcePath = objOrgTableCsvPath.with_name(pszFileName)
+        if objSourcePath.exists():
+            shutil.copyfile(objSourcePath, objTempOrgTableDirectoryPath / pszFileName)
+
     # Staff_List.tsv の処理は削除
 
     pszRawDataTsvPath: str = str(objBaseDirectoryPath / "Raw_Data.tsv")
