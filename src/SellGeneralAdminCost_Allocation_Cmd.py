@@ -5378,10 +5378,15 @@ def parse_tsv_value_for_excel(pszValue: str) -> Optional[object]:
         return "－∞"
     if pszText == "'＋∞":
         return "＋∞"
-    if re.fullmatch(r"-?\d+", pszText):
-        return int(pszText)
-    if re.fullmatch(r"-?\d+\.\d+", pszText):
-        return float(pszText)
+    pszNormalized = pszText
+    if pszNormalized.startswith("'"):
+        pszNormalized = pszNormalized[1:]
+    pszNormalized = pszNormalized.replace("－", "-").replace("＋", "+")
+    pszNormalized = pszNormalized.replace(",", "")
+    if re.fullmatch(r"[+-]?\d+", pszNormalized):
+        return int(pszNormalized)
+    if re.fullmatch(r"[+-]?\d+\.\d+", pszNormalized):
+        return float(pszNormalized)
     return pszText
 
 
