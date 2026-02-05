@@ -6019,7 +6019,7 @@ def main(argv: list[str]) -> int:
         print("Error: 採用範囲に合致する入力がありません。", file=sys.stderr)
         return 1
 
-    pszRangeFileDirectory: str = os.path.dirname(objSelectedPairs[0][1])
+    pszRangeFileDirectory: str = get_script_base_directory()
     pszRangePathSelected: str = ensure_selected_range_file(pszRangeFileDirectory, objSelectedRange)
     record_created_file(pszRangePathSelected)
 
