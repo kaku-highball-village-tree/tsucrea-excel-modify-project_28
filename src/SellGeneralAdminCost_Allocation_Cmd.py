@@ -1229,11 +1229,14 @@ def move_files_to_temp(objFilePaths: List[str], pszBaseDirectory: str) -> None:
 
 
 def find_selected_range_path(pszBaseDirectory: str) -> Optional[str]:
-    pszFileName: str = "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt"
-    objCandidates: List[str] = [
-        os.path.join(pszBaseDirectory, pszFileName),
-        os.path.join(os.path.dirname(__file__), pszFileName),
+    objFileNames: List[str] = [
+        "SellGeneralAdminCost_Allocation_Cmd_SelectedRange.txt",
+        "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt",
     ]
+    objCandidates: List[str] = []
+    for pszFileName in objFileNames:
+        objCandidates.append(os.path.join(pszBaseDirectory, pszFileName))
+        objCandidates.append(os.path.join(os.path.dirname(__file__), pszFileName))
     for pszCandidate in objCandidates:
         if os.path.isfile(pszCandidate):
             return pszCandidate
@@ -1332,7 +1335,7 @@ def _update_best_range(
 def ensure_selected_range_file(pszDirectory: str, objRange: Tuple[Tuple[int, int], Tuple[int, int]]) -> str:
     iStartYear, iStartMonth = objRange[0]
     iEndYear, iEndMonth = objRange[1]
-    pszOutputPath: str = os.path.join(pszDirectory, "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt")
+    pszOutputPath: str = os.path.join(pszDirectory, "SellGeneralAdminCost_Allocation_Cmd_SelectedRange.txt")
     pszStartText: str = f"{iStartYear:04d}/{iStartMonth:02d}"
     pszEndText: str = f"{iEndYear:04d}/{iEndMonth:02d}"
     objLines: List[str] = [
