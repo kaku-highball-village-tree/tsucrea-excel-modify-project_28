@@ -3243,7 +3243,7 @@ def create_pj_summary(
     create_step0007: bool = True,
 ) -> None:
     objStart, objEnd = objRange
-    pszDirectory: str = os.path.dirname(pszPlPath)
+    pszDirectory: str = get_script_base_directory()
     iEndYear, iEndMonth = objEnd
     pszEndMonth: str = f"{iEndMonth:02d}"
     pszSinglePlPath: str = os.path.join(
@@ -4652,14 +4652,16 @@ def build_pj_summary_range(
 
 
 def create_cumulative_reports(pszPlPath: str) -> None:
-    pszDirectory: str = os.path.dirname(pszPlPath)
-    pszRangePath: Optional[str] = find_selected_range_path(pszDirectory)
+    pszInputDirectory: str = os.path.dirname(pszPlPath)
+    pszDirectory: str = get_script_base_directory()
+    pszRangePath: Optional[str] = find_selected_range_path(pszInputDirectory)
     if pszRangePath is None:
         return
 
     objRange = parse_selected_range(pszRangePath)
     if objRange is None:
         return
+    ensure_selected_range_file(pszDirectory, objRange)
 
     objStart, objEnd = objRange
     objFiscalARanges = split_by_fiscal_boundary(objStart, objEnd, 3)
