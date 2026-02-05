@@ -70,9 +70,9 @@ def create_execution_folders() -> str:
 
 
 def build_default_output_path(pszInputPlPath: str) -> str:
-    pszDirectory: str
+    pszScriptDirectory: str = os.path.dirname(os.path.abspath(__file__))
     pszFileName: str
-    pszDirectory, pszFileName = os.path.split(pszInputPlPath)
+    _, pszFileName = os.path.split(pszInputPlPath)
 
     pszStem: str
     pszExt: str
@@ -107,14 +107,14 @@ def build_default_output_path(pszInputPlPath: str) -> str:
         pszOutputStem = pszStem + "_販管費配賦"
 
     pszOutputFileName: str = pszOutputStem + pszExt
-    pszOutputPath: str = os.path.join(pszDirectory, pszOutputFileName)
+    pszOutputPath: str = os.path.join(pszScriptDirectory, pszOutputFileName)
     return pszOutputPath
 
 
 def build_output_path_with_step(pszInputPlPath: str, pszStepMarker: str) -> str:
-    pszDirectory: str
+    pszScriptDirectory: str = os.path.dirname(os.path.abspath(__file__))
     pszFileName: str
-    pszDirectory, pszFileName = os.path.split(pszInputPlPath)
+    _, pszFileName = os.path.split(pszInputPlPath)
 
     pszStem: str
     pszExt: str
@@ -148,7 +148,7 @@ def build_output_path_with_step(pszInputPlPath: str, pszStepMarker: str) -> str:
         pszOutputStem = pszStem + "_販管費配賦"
 
     pszOutputFileName: str = pszOutputStem + pszExt
-    pszOutputPath: str = os.path.join(pszDirectory, pszOutputFileName)
+    pszOutputPath: str = os.path.join(pszScriptDirectory, pszOutputFileName)
     return pszOutputPath
 
 
@@ -4830,9 +4830,26 @@ def create_pj_summary_gross_profit_ranking_excel(pszDirectory: str) -> Optional[
     objSheet = objWorkbook.worksheets[0]
     objSheet.title = "粗利金額ランキング"
     objRows = read_tsv_rows(pszInputPath)
+    objPercentColumns: set[int] = set()
+    for objRow in objRows:
+        for iColumnIndex, pszValue in enumerate(objRow):
+            if pszValue in ("'＋∞", "'－∞", "＋∞", "－∞"):
+                objPercentColumns.add(iColumnIndex)
+
+    def is_numeric_ratio(pszValue: str) -> bool:
+        pszText = (pszValue or "").strip()
+        return bool(re.fullmatch(r"[+-]?\d+(?:\.\d+)?", pszText))
+
     for iRowIndex, objRow in enumerate(objRows, start=1):
         for iColumnIndex, pszValue in enumerate(objRow, start=1):
             objCellValue = parse_tsv_value_for_excel(pszValue)
+            if (
+                iRowIndex > 1
+                and (iColumnIndex - 1) in objPercentColumns
+                and pszValue not in ("'＋∞", "'－∞", "＋∞", "－∞")
+                and is_numeric_ratio(pszValue)
+            ):
+                objCellValue = f"{float(pszValue) * 100:.2f}%"
             objSheet.cell(
                 row=iRowIndex,
                 column=iColumnIndex,
@@ -5378,10 +5395,15 @@ def parse_tsv_value_for_excel(pszValue: str) -> Optional[object]:
         return "－∞"
     if pszText == "'＋∞":
         return "＋∞"
-    if re.fullmatch(r"-?\d+", pszText):
-        return int(pszText)
-    if re.fullmatch(r"-?\d+\.\d+", pszText):
-        return float(pszText)
+    pszNormalized = pszText
+    if pszNormalized.startswith("'"):
+        pszNormalized = pszNormalized[1:]
+    pszNormalized = pszNormalized.replace("－", "-").replace("＋", "+")
+    pszNormalized = pszNormalized.replace(",", "")
+    if re.fullmatch(r"[+-]?\d+", pszNormalized):
+        return int(pszNormalized)
+    if re.fullmatch(r"[+-]?\d+\.\d+", pszNormalized):
+        return float(pszNormalized)
     return pszText
 
 
