@@ -1079,7 +1079,7 @@ def write_selected_range_file(
         return None
     pszStart: str = objPairs[0][3]
     pszEnd: str = objPairs[-1][3]
-    pszOutputDirectory: str = os.path.dirname(objPairs[0][1])
+    pszOutputDirectory: str = os.path.dirname(os.path.abspath(__file__))
     pszOutputFileName: str = "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt"
     pszOutputPath: str = os.path.join(pszOutputDirectory, pszOutputFileName)
     with open(pszOutputPath, "w", encoding="utf-8", newline="") as objOutputFile:
