@@ -47,9 +47,13 @@ def print_usage() -> None:
 EXECUTION_ROOT_DIRECTORY: Optional[str] = None
 
 
+def get_script_base_directory() -> str:
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 def create_execution_folders() -> str:
     global EXECUTION_ROOT_DIRECTORY
-    pszScriptDirectory: str = os.path.dirname(os.path.abspath(__file__))
+    pszScriptDirectory: str = get_script_base_directory()
     pszTimestamp: str = datetime.now().strftime("%Y年%m月%d日%H時%M分%S秒")
     pszRootDirectory: str = os.path.join(
         pszScriptDirectory,
@@ -70,9 +74,9 @@ def create_execution_folders() -> str:
 
 
 def build_default_output_path(pszInputPlPath: str) -> str:
-    pszDirectory: str
+    pszScriptDirectory: str = get_script_base_directory()
     pszFileName: str
-    pszDirectory, pszFileName = os.path.split(pszInputPlPath)
+    _, pszFileName = os.path.split(pszInputPlPath)
 
     pszStem: str
     pszExt: str
@@ -107,14 +111,14 @@ def build_default_output_path(pszInputPlPath: str) -> str:
         pszOutputStem = pszStem + "_販管費配賦"
 
     pszOutputFileName: str = pszOutputStem + pszExt
-    pszOutputPath: str = os.path.join(pszDirectory, pszOutputFileName)
+    pszOutputPath: str = os.path.join(pszScriptDirectory, pszOutputFileName)
     return pszOutputPath
 
 
 def build_output_path_with_step(pszInputPlPath: str, pszStepMarker: str) -> str:
-    pszDirectory: str
+    pszScriptDirectory: str = get_script_base_directory()
     pszFileName: str
-    pszDirectory, pszFileName = os.path.split(pszInputPlPath)
+    _, pszFileName = os.path.split(pszInputPlPath)
 
     pszStem: str
     pszExt: str
@@ -148,7 +152,7 @@ def build_output_path_with_step(pszInputPlPath: str, pszStepMarker: str) -> str:
         pszOutputStem = pszStem + "_販管費配賦"
 
     pszOutputFileName: str = pszOutputStem + pszExt
-    pszOutputPath: str = os.path.join(pszDirectory, pszOutputFileName)
+    pszOutputPath: str = os.path.join(pszScriptDirectory, pszOutputFileName)
     return pszOutputPath
 
 
@@ -1151,7 +1155,7 @@ def process_pl_tsv(
     pszOutputStep0010HorizontalPath: str = pszOutputStep0010Path.replace("_vertical", "")
     move_files_to_temp_and_copy_back(
         [pszOutputStep0010Path, pszOutputStep0010HorizontalPath],
-        os.getcwd(),
+        get_script_base_directory(),
     )
 
     with open(pszOutputFinalPath, "w", encoding="utf-8", newline="") as objOutputFile:
@@ -3154,10 +3158,11 @@ def create_step0007_pl_cr(
     write_tsv_rows(pszCumulativeOutputPath, objCumulativeFinalRows)
 
     if objSingleFinalRows and objCumulativeFinalRows:
-        pszStep0008Directory: str = os.path.join(os.getcwd(), "PJ_Summary_step0008_Project")
-        pszStep0009Directory: str = os.path.join(os.getcwd(), "PJ_Summary_step0009_Project")
-        pszStep0010Directory: str = os.path.join(os.getcwd(), "PJ_Summary_step0010_Project")
-        pszStep0011Directory: str = os.path.join(os.getcwd(), "PJ_Summary_step0011_Project")
+        pszScriptDirectory: str = get_script_base_directory()
+        pszStep0008Directory: str = os.path.join(pszScriptDirectory, "PJ_Summary_step0008_Project")
+        pszStep0009Directory: str = os.path.join(pszScriptDirectory, "PJ_Summary_step0009_Project")
+        pszStep0010Directory: str = os.path.join(pszScriptDirectory, "PJ_Summary_step0010_Project")
+        pszStep0011Directory: str = os.path.join(pszScriptDirectory, "PJ_Summary_step0011_Project")
         os.makedirs(pszStep0008Directory, exist_ok=True)
         os.makedirs(pszStep0009Directory, exist_ok=True)
         os.makedirs(pszStep0010Directory, exist_ok=True)
@@ -4693,7 +4698,7 @@ def create_cumulative_reports(pszPlPath: str) -> None:
 
 
 def copy_cp_step0005_vertical_files(pszDirectory: str, objPaths: List[Optional[str]]) -> None:
-    pszTargetDirectory: str = os.path.join(pszDirectory, "ByCompany_ManagementControl_step0005")
+    pszTargetDirectory: str = os.path.join(get_script_base_directory(), "ByCompany_ManagementControl_step0005")
     os.makedirs(pszTargetDirectory, exist_ok=True)
     for pszPath in objPaths:
         if not pszPath:
@@ -4748,7 +4753,7 @@ def copy_company_step0006_files(
     pszTargetFolder: str,
     create_step0007: bool = True,
 ) -> None:
-    pszTargetDirectory: str = os.path.join(pszDirectory, pszTargetFolder)
+    pszTargetDirectory: str = os.path.join(get_script_base_directory(), pszTargetFolder)
     os.makedirs(pszTargetDirectory, exist_ok=True)
     for pszPath in objPaths:
         if not pszPath or not os.path.isfile(pszPath):
@@ -4830,9 +4835,26 @@ def create_pj_summary_gross_profit_ranking_excel(pszDirectory: str) -> Optional[
     objSheet = objWorkbook.worksheets[0]
     objSheet.title = "粗利金額ランキング"
     objRows = read_tsv_rows(pszInputPath)
+    objPercentColumns: set[int] = set()
+    for objRow in objRows:
+        for iColumnIndex, pszValue in enumerate(objRow):
+            if pszValue in ("'＋∞", "'－∞", "＋∞", "－∞"):
+                objPercentColumns.add(iColumnIndex)
+
+    def is_numeric_ratio(pszValue: str) -> bool:
+        pszText = (pszValue or "").strip()
+        return bool(re.fullmatch(r"[+-]?\d+(?:\.\d+)?", pszText))
+
     for iRowIndex, objRow in enumerate(objRows, start=1):
         for iColumnIndex, pszValue in enumerate(objRow, start=1):
             objCellValue = parse_tsv_value_for_excel(pszValue)
+            if (
+                iRowIndex > 1
+                and (iColumnIndex - 1) in objPercentColumns
+                and pszValue not in ("'＋∞", "'－∞", "＋∞", "－∞")
+                and is_numeric_ratio(pszValue)
+            ):
+                objCellValue = f"{float(pszValue) * 100:.2f}%"
             objSheet.cell(
                 row=iRowIndex,
                 column=iColumnIndex,
@@ -5378,10 +5400,15 @@ def parse_tsv_value_for_excel(pszValue: str) -> Optional[object]:
         return "－∞"
     if pszText == "'＋∞":
         return "＋∞"
-    if re.fullmatch(r"-?\d+", pszText):
-        return int(pszText)
-    if re.fullmatch(r"-?\d+\.\d+", pszText):
-        return float(pszText)
+    pszNormalized = pszText
+    if pszNormalized.startswith("'"):
+        pszNormalized = pszNormalized[1:]
+    pszNormalized = pszNormalized.replace("－", "-").replace("＋", "+")
+    pszNormalized = pszNormalized.replace(",", "")
+    if re.fullmatch(r"[+-]?\d+", pszNormalized):
+        return int(pszNormalized)
+    if re.fullmatch(r"[+-]?\d+\.\d+", pszNormalized):
+        return float(pszNormalized)
     return pszText
 
 
@@ -5774,7 +5801,7 @@ def create_cp_step0007_file_company(pszStep0006Path: str, pszPrefix: str) -> Non
         pszPriorRowLabel,
     )
     write_tsv_rows(pszOutputPath, objOutputRows)
-    pszTargetDirectory = os.path.join(pszDirectory, f"{pszPrefix}_step0007")
+    pszTargetDirectory = os.path.join(get_script_base_directory(), f"{pszPrefix}_step0007")
     os.makedirs(pszTargetDirectory, exist_ok=True)
     pszTargetPath = os.path.join(pszTargetDirectory, os.path.basename(pszOutputPath))
     shutil.copy2(pszOutputPath, pszTargetPath)
@@ -5783,7 +5810,7 @@ def create_cp_step0007_file_company(pszStep0006Path: str, pszPrefix: str) -> Non
 def create_cp_step0007_file_0001(pszStep0006Path: str) -> None:
     create_cp_step0007_file_company(pszStep0006Path, "0001_CP別")
     pszOutputPath = os.path.join(
-        os.path.dirname(pszStep0006Path),
+        get_script_base_directory(),
         os.path.basename(pszStep0006Path).replace("_step0006_", "_step0007_"),
     )
     if os.path.isfile(pszOutputPath):
