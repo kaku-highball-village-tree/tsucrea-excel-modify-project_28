@@ -70,9 +70,9 @@ def create_execution_folders() -> str:
 
 
 def build_default_output_path(pszInputPlPath: str) -> str:
-    pszDirectory: str
+    pszScriptDirectory: str = os.path.dirname(os.path.abspath(__file__))
     pszFileName: str
-    pszDirectory, pszFileName = os.path.split(pszInputPlPath)
+    _, pszFileName = os.path.split(pszInputPlPath)
 
     pszStem: str
     pszExt: str
@@ -107,14 +107,14 @@ def build_default_output_path(pszInputPlPath: str) -> str:
         pszOutputStem = pszStem + "_販管費配賦"
 
     pszOutputFileName: str = pszOutputStem + pszExt
-    pszOutputPath: str = os.path.join(pszDirectory, pszOutputFileName)
+    pszOutputPath: str = os.path.join(pszScriptDirectory, pszOutputFileName)
     return pszOutputPath
 
 
 def build_output_path_with_step(pszInputPlPath: str, pszStepMarker: str) -> str:
-    pszDirectory: str
+    pszScriptDirectory: str = os.path.dirname(os.path.abspath(__file__))
     pszFileName: str
-    pszDirectory, pszFileName = os.path.split(pszInputPlPath)
+    _, pszFileName = os.path.split(pszInputPlPath)
 
     pszStem: str
     pszExt: str
@@ -148,7 +148,7 @@ def build_output_path_with_step(pszInputPlPath: str, pszStepMarker: str) -> str:
         pszOutputStem = pszStem + "_販管費配賦"
 
     pszOutputFileName: str = pszOutputStem + pszExt
-    pszOutputPath: str = os.path.join(pszDirectory, pszOutputFileName)
+    pszOutputPath: str = os.path.join(pszScriptDirectory, pszOutputFileName)
     return pszOutputPath
 
 
