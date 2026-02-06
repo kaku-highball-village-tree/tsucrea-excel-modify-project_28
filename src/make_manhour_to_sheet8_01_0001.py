@@ -4247,6 +4247,8 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
 
         if objOrgTableStep0008Path.exists() and objOrgTableStep0008Path != objOrgTableTsvPath:
             shutil.copyfile(objOrgTableStep0008Path, objOrgTableTsvPath)
+        if objOrgTableTsvPath.exists():
+            shutil.copyfile(objOrgTableTsvPath, objBaseDirectoryPath / "管轄PJ表.tsv")
 
     objTempDirectoryPath: Path = objBaseDirectoryPath / "temp"
     objTempOrgTableDirectoryPath: Path = objTempDirectoryPath / "管轄PJ表"
