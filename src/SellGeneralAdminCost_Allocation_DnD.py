@@ -325,13 +325,22 @@ def handle_period_left_down() -> None:
         )
         return
     pszPeriodDirectory = os.path.join(pszExecutionRoot, "期間")
-    pszTargetPath = os.path.join(
-        pszPeriodDirectory,
+    objCandidateFileNames: List[str] = [
+        "SellGeneralAdminCost_Allocation_Cmd_SelectedRange.txt",
         "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt",
-    )
-    if not os.path.isfile(pszTargetPath):
+    ]
+    pszTargetPath: Optional[str] = None
+    for pszFileName in objCandidateFileNames:
+        pszCandidatePath: str = os.path.join(pszPeriodDirectory, pszFileName)
+        if os.path.isfile(pszCandidatePath):
+            pszTargetPath = pszCandidatePath
+            break
+    if pszTargetPath is None:
         show_error_message_box(
-            "Error: ファイルが見つかりません。\n" + pszTargetPath,
+            "Error: ファイルが見つかりません。\n" + os.path.join(
+                pszPeriodDirectory,
+                objCandidateFileNames[0],
+            ),
             "SellGeneralAdminCost_Allocation_DnD",
         )
         return
@@ -1079,7 +1088,7 @@ def write_selected_range_file(
         return None
     pszStart: str = objPairs[0][3]
     pszEnd: str = objPairs[-1][3]
-    pszOutputDirectory: str = os.path.dirname(objPairs[0][1])
+    pszOutputDirectory: str = os.path.dirname(os.path.abspath(__file__))
     pszOutputFileName: str = "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt"
     pszOutputPath: str = os.path.join(pszOutputDirectory, pszOutputFileName)
     with open(pszOutputPath, "w", encoding="utf-8", newline="") as objOutputFile:

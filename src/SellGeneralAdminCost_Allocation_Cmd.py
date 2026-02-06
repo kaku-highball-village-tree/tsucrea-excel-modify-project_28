@@ -47,9 +47,13 @@ def print_usage() -> None:
 EXECUTION_ROOT_DIRECTORY: Optional[str] = None
 
 
+def get_script_base_directory() -> str:
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 def create_execution_folders() -> str:
     global EXECUTION_ROOT_DIRECTORY
-    pszScriptDirectory: str = os.path.dirname(os.path.abspath(__file__))
+    pszScriptDirectory: str = get_script_base_directory()
     pszTimestamp: str = datetime.now().strftime("%Y年%m月%d日%H時%M分%S秒")
     pszRootDirectory: str = os.path.join(
         pszScriptDirectory,
@@ -70,9 +74,9 @@ def create_execution_folders() -> str:
 
 
 def build_default_output_path(pszInputPlPath: str) -> str:
-    pszDirectory: str
+    pszScriptDirectory: str = get_script_base_directory()
     pszFileName: str
-    pszDirectory, pszFileName = os.path.split(pszInputPlPath)
+    _, pszFileName = os.path.split(pszInputPlPath)
 
     pszStem: str
     pszExt: str
@@ -107,14 +111,14 @@ def build_default_output_path(pszInputPlPath: str) -> str:
         pszOutputStem = pszStem + "_販管費配賦"
 
     pszOutputFileName: str = pszOutputStem + pszExt
-    pszOutputPath: str = os.path.join(pszDirectory, pszOutputFileName)
+    pszOutputPath: str = os.path.join(pszScriptDirectory, pszOutputFileName)
     return pszOutputPath
 
 
 def build_output_path_with_step(pszInputPlPath: str, pszStepMarker: str) -> str:
-    pszDirectory: str
+    pszScriptDirectory: str = get_script_base_directory()
     pszFileName: str
-    pszDirectory, pszFileName = os.path.split(pszInputPlPath)
+    _, pszFileName = os.path.split(pszInputPlPath)
 
     pszStem: str
     pszExt: str
@@ -148,7 +152,7 @@ def build_output_path_with_step(pszInputPlPath: str, pszStepMarker: str) -> str:
         pszOutputStem = pszStem + "_販管費配賦"
 
     pszOutputFileName: str = pszOutputStem + pszExt
-    pszOutputPath: str = os.path.join(pszDirectory, pszOutputFileName)
+    pszOutputPath: str = os.path.join(pszScriptDirectory, pszOutputFileName)
     return pszOutputPath
 
 
@@ -1151,7 +1155,7 @@ def process_pl_tsv(
     pszOutputStep0010HorizontalPath: str = pszOutputStep0010Path.replace("_vertical", "")
     move_files_to_temp_and_copy_back(
         [pszOutputStep0010Path, pszOutputStep0010HorizontalPath],
-        os.getcwd(),
+        get_script_base_directory(),
     )
 
     with open(pszOutputFinalPath, "w", encoding="utf-8", newline="") as objOutputFile:
@@ -1225,11 +1229,14 @@ def move_files_to_temp(objFilePaths: List[str], pszBaseDirectory: str) -> None:
 
 
 def find_selected_range_path(pszBaseDirectory: str) -> Optional[str]:
-    pszFileName: str = "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt"
-    objCandidates: List[str] = [
-        os.path.join(pszBaseDirectory, pszFileName),
-        os.path.join(os.path.dirname(__file__), pszFileName),
+    objFileNames: List[str] = [
+        "SellGeneralAdminCost_Allocation_Cmd_SelectedRange.txt",
+        "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt",
     ]
+    objCandidates: List[str] = []
+    for pszFileName in objFileNames:
+        objCandidates.append(os.path.join(pszBaseDirectory, pszFileName))
+        objCandidates.append(os.path.join(os.path.dirname(__file__), pszFileName))
     for pszCandidate in objCandidates:
         if os.path.isfile(pszCandidate):
             return pszCandidate
@@ -1328,7 +1335,7 @@ def _update_best_range(
 def ensure_selected_range_file(pszDirectory: str, objRange: Tuple[Tuple[int, int], Tuple[int, int]]) -> str:
     iStartYear, iStartMonth = objRange[0]
     iEndYear, iEndMonth = objRange[1]
-    pszOutputPath: str = os.path.join(pszDirectory, "SellGeneralAdminCost_Allocation_DnD_SelectedRange.txt")
+    pszOutputPath: str = os.path.join(pszDirectory, "SellGeneralAdminCost_Allocation_Cmd_SelectedRange.txt")
     pszStartText: str = f"{iStartYear:04d}/{iStartMonth:02d}"
     pszEndText: str = f"{iEndYear:04d}/{iEndMonth:02d}"
     objLines: List[str] = [
@@ -3154,10 +3161,11 @@ def create_step0007_pl_cr(
     write_tsv_rows(pszCumulativeOutputPath, objCumulativeFinalRows)
 
     if objSingleFinalRows and objCumulativeFinalRows:
-        pszStep0008Directory: str = os.path.join(os.getcwd(), "PJ_Summary_step0008_Project")
-        pszStep0009Directory: str = os.path.join(os.getcwd(), "PJ_Summary_step0009_Project")
-        pszStep0010Directory: str = os.path.join(os.getcwd(), "PJ_Summary_step0010_Project")
-        pszStep0011Directory: str = os.path.join(os.getcwd(), "PJ_Summary_step0011_Project")
+        pszScriptDirectory: str = get_script_base_directory()
+        pszStep0008Directory: str = os.path.join(pszScriptDirectory, "PJ_Summary_step0008_Project")
+        pszStep0009Directory: str = os.path.join(pszScriptDirectory, "PJ_Summary_step0009_Project")
+        pszStep0010Directory: str = os.path.join(pszScriptDirectory, "PJ_Summary_step0010_Project")
+        pszStep0011Directory: str = os.path.join(pszScriptDirectory, "PJ_Summary_step0011_Project")
         os.makedirs(pszStep0008Directory, exist_ok=True)
         os.makedirs(pszStep0009Directory, exist_ok=True)
         os.makedirs(pszStep0010Directory, exist_ok=True)
@@ -3238,7 +3246,7 @@ def create_pj_summary(
     create_step0007: bool = True,
 ) -> None:
     objStart, objEnd = objRange
-    pszDirectory: str = os.path.dirname(pszPlPath)
+    pszDirectory: str = get_script_base_directory()
     iEndYear, iEndMonth = objEnd
     pszEndMonth: str = f"{iEndMonth:02d}"
     pszSinglePlPath: str = os.path.join(
@@ -4647,14 +4655,16 @@ def build_pj_summary_range(
 
 
 def create_cumulative_reports(pszPlPath: str) -> None:
-    pszDirectory: str = os.path.dirname(pszPlPath)
-    pszRangePath: Optional[str] = find_selected_range_path(pszDirectory)
+    pszInputDirectory: str = os.path.dirname(pszPlPath)
+    pszDirectory: str = get_script_base_directory()
+    pszRangePath: Optional[str] = find_selected_range_path(pszInputDirectory)
     if pszRangePath is None:
         return
 
     objRange = parse_selected_range(pszRangePath)
     if objRange is None:
         return
+    ensure_selected_range_file(pszDirectory, objRange)
 
     objStart, objEnd = objRange
     objFiscalARanges = split_by_fiscal_boundary(objStart, objEnd, 3)
@@ -4693,7 +4703,7 @@ def create_cumulative_reports(pszPlPath: str) -> None:
 
 
 def copy_cp_step0005_vertical_files(pszDirectory: str, objPaths: List[Optional[str]]) -> None:
-    pszTargetDirectory: str = os.path.join(pszDirectory, "ByCompany_ManagementControl_step0005")
+    pszTargetDirectory: str = os.path.join(get_script_base_directory(), "ByCompany_ManagementControl_step0005")
     os.makedirs(pszTargetDirectory, exist_ok=True)
     for pszPath in objPaths:
         if not pszPath:
@@ -4748,7 +4758,7 @@ def copy_company_step0006_files(
     pszTargetFolder: str,
     create_step0007: bool = True,
 ) -> None:
-    pszTargetDirectory: str = os.path.join(pszDirectory, pszTargetFolder)
+    pszTargetDirectory: str = os.path.join(get_script_base_directory(), pszTargetFolder)
     os.makedirs(pszTargetDirectory, exist_ok=True)
     for pszPath in objPaths:
         if not pszPath or not os.path.isfile(pszPath):
@@ -4830,9 +4840,27 @@ def create_pj_summary_gross_profit_ranking_excel(pszDirectory: str) -> Optional[
     objSheet = objWorkbook.worksheets[0]
     objSheet.title = "粗利金額ランキング"
     objRows = read_tsv_rows(pszInputPath)
+    objPlusMinusInfinityMarkers: Tuple[str, ...] = ("'＋∞", "'－∞", "＋∞", "－∞")
+    objPercentColumns: set[int] = set()
+    for objRow in objRows:
+        for iColumnIndex, pszValue in enumerate(objRow):
+            if pszValue in objPlusMinusInfinityMarkers:
+                objPercentColumns.add(iColumnIndex)
+
+    def is_numeric_ratio(pszValue: str) -> bool:
+        pszText = (pszValue or "").strip()
+        return bool(re.fullmatch(r"[+-]?\d+(?:\.\d+)?", pszText))
+
     for iRowIndex, objRow in enumerate(objRows, start=1):
         for iColumnIndex, pszValue in enumerate(objRow, start=1):
             objCellValue = parse_tsv_value_for_excel(pszValue)
+            if (
+                iRowIndex > 1
+                and (iColumnIndex - 1) in objPercentColumns
+                and pszValue not in objPlusMinusInfinityMarkers
+                and is_numeric_ratio(pszValue)
+            ):
+                objCellValue = f"{float(pszValue) * 100:.2f}%"
             objSheet.cell(
                 row=iRowIndex,
                 column=iColumnIndex,
@@ -4876,23 +4904,29 @@ def create_pj_summary_sales_cost_sg_admin_margin_excel(pszDirectory: str) -> Opt
     if not os.path.isfile(pszTemplatePath):
         return None
     objWorkbook = load_workbook(pszTemplatePath)
+    objTemplateSheet = objWorkbook.worksheets[0]
     for iIndex, pszInputName in enumerate(objCandidates):
         if iIndex < len(objWorkbook.worksheets):
             objSheet = objWorkbook.worksheets[iIndex]
         else:
-            objSheet = objWorkbook.create_sheet()
+            objSheet = objWorkbook.copy_worksheet(objTemplateSheet)
         objSheetNameMatch = objSheetNamePattern.match(pszInputName)
         if objSheetNameMatch:
             objSheet.title = objSheetNameMatch.group(1)
         objRows = read_tsv_rows(os.path.join(pszDirectory, pszInputName))
+        iFormatRowIndex: int = 2 if objSheet.max_row >= 2 else 1
         for iRowIndex, objRow in enumerate(objRows, start=1):
             for iColumnIndex, pszValue in enumerate(objRow, start=1):
                 objCellValue = parse_tsv_value_for_excel(pszValue)
-                objSheet.cell(
+                objCell = objSheet.cell(
                     row=iRowIndex,
                     column=iColumnIndex,
                     value=objCellValue,
                 )
+                if iRowIndex >= 2:
+                    objFormatCell = objSheet.cell(row=iFormatRowIndex, column=iColumnIndex)
+                    if objFormatCell.number_format:
+                        objCell.number_format = objFormatCell.number_format
     pszTargetDirectory: str = os.path.join(pszDirectory, "PJサマリ")
     os.makedirs(pszTargetDirectory, exist_ok=True)
     pszOutputPath: str = os.path.join(
@@ -5378,10 +5412,15 @@ def parse_tsv_value_for_excel(pszValue: str) -> Optional[object]:
         return "－∞"
     if pszText == "'＋∞":
         return "＋∞"
-    if re.fullmatch(r"-?\d+", pszText):
-        return int(pszText)
-    if re.fullmatch(r"-?\d+\.\d+", pszText):
-        return float(pszText)
+    pszNormalized = pszText
+    if pszNormalized.startswith("'"):
+        pszNormalized = pszNormalized[1:]
+    pszNormalized = pszNormalized.replace("－", "-").replace("＋", "+")
+    pszNormalized = pszNormalized.replace(",", "")
+    if re.fullmatch(r"[+-]?\d+", pszNormalized):
+        return int(pszNormalized)
+    if re.fullmatch(r"[+-]?\d+\.\d+", pszNormalized):
+        return float(pszNormalized)
     return pszText
 
 
@@ -5774,7 +5813,7 @@ def create_cp_step0007_file_company(pszStep0006Path: str, pszPrefix: str) -> Non
         pszPriorRowLabel,
     )
     write_tsv_rows(pszOutputPath, objOutputRows)
-    pszTargetDirectory = os.path.join(pszDirectory, f"{pszPrefix}_step0007")
+    pszTargetDirectory = os.path.join(get_script_base_directory(), f"{pszPrefix}_step0007")
     os.makedirs(pszTargetDirectory, exist_ok=True)
     pszTargetPath = os.path.join(pszTargetDirectory, os.path.basename(pszOutputPath))
     shutil.copy2(pszOutputPath, pszTargetPath)
@@ -5783,7 +5822,7 @@ def create_cp_step0007_file_company(pszStep0006Path: str, pszPrefix: str) -> Non
 def create_cp_step0007_file_0001(pszStep0006Path: str) -> None:
     create_cp_step0007_file_company(pszStep0006Path, "0001_CP別")
     pszOutputPath = os.path.join(
-        os.path.dirname(pszStep0006Path),
+        get_script_base_directory(),
         os.path.basename(pszStep0006Path).replace("_step0006_", "_step0007_"),
     )
     if os.path.isfile(pszOutputPath):
@@ -5987,7 +6026,7 @@ def main(argv: list[str]) -> int:
         print("Error: 採用範囲に合致する入力がありません。", file=sys.stderr)
         return 1
 
-    pszRangeFileDirectory: str = os.path.dirname(objSelectedPairs[0][1])
+    pszRangeFileDirectory: str = get_script_base_directory()
     pszRangePathSelected: str = ensure_selected_range_file(pszRangeFileDirectory, objSelectedRange)
     record_created_file(pszRangePathSelected)
 
