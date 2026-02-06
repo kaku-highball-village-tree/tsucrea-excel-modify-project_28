@@ -4840,10 +4840,11 @@ def create_pj_summary_gross_profit_ranking_excel(pszDirectory: str) -> Optional[
     objSheet = objWorkbook.worksheets[0]
     objSheet.title = "粗利金額ランキング"
     objRows = read_tsv_rows(pszInputPath)
+    objPlusMinusInfinityMarkers: Tuple[str, ...] = ("'＋∞", "'－∞", "＋∞", "－∞")
     objPercentColumns: set[int] = set()
     for objRow in objRows:
         for iColumnIndex, pszValue in enumerate(objRow):
-            if pszValue in ("'＋∞", "'－∞", "＋∞", "－∞"):
+            if pszValue in objPlusMinusInfinityMarkers:
                 objPercentColumns.add(iColumnIndex)
 
     def is_numeric_ratio(pszValue: str) -> bool:
@@ -4856,7 +4857,7 @@ def create_pj_summary_gross_profit_ranking_excel(pszDirectory: str) -> Optional[
             if (
                 iRowIndex > 1
                 and (iColumnIndex - 1) in objPercentColumns
-                and pszValue not in ("'＋∞", "'－∞", "＋∞", "－∞")
+                and pszValue not in objPlusMinusInfinityMarkers
                 and is_numeric_ratio(pszValue)
             ):
                 objCellValue = f"{float(pszValue) * 100:.2f}%"
