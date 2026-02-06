@@ -1,6 +1,7 @@
 import csv
 import os
 import re
+import shutil
 import sys
 from typing import List, Tuple
 
@@ -496,7 +497,37 @@ def main() -> int:
         objProfitLossProjectNameVerticalFilePaths,
         bWriteHorizontal=True,
     )
+    create_drag_and_drop_manhour_and_pl_folder()
     return iExitCode
+
+
+def create_drag_and_drop_manhour_and_pl_folder() -> None:
+    pszScriptDirectory: str = os.path.dirname(os.path.abspath(__file__))
+    objTargetMonths: List[str] = [f"2025年{iMonth:02d}月" for iMonth in range(4, 11)]
+    objManhourFileNames: List[str] = [
+        f"工数_{pszYearMonth}_step11_各プロジェクトの計上カンパニー名_工数_カンパニーの工数.tsv"
+        for pszYearMonth in objTargetMonths
+    ]
+    objProfitLossFileNames: List[str] = [
+        f"損益計算書_{pszYearMonth}_A∪B_プロジェクト名_C∪D_vertical.tsv"
+        for pszYearMonth in objTargetMonths
+    ]
+    objTargetFileNames: List[str] = objManhourFileNames + objProfitLossFileNames
+    objExistingSourcePaths: List[str] = []
+    for pszFileName in objTargetFileNames:
+        pszSourcePath: str = os.path.join(pszScriptDirectory, pszFileName)
+        if not os.path.isfile(pszSourcePath):
+            return
+        objExistingSourcePaths.append(pszSourcePath)
+
+    pszOutputDirectory: str = os.path.join(pszScriptDirectory, "DragAndDropManhourAndPl")
+    os.makedirs(pszOutputDirectory, exist_ok=True)
+    for pszSourcePath in objExistingSourcePaths:
+        pszDestinationPath: str = os.path.join(pszOutputDirectory, os.path.basename(pszSourcePath))
+        shutil.copy2(pszSourcePath, pszDestinationPath)
+
+    if hasattr(os, "startfile"):
+        os.startfile(pszOutputDirectory)
 
 
 def create_union_subject_vertical_tsvs(objCostReportVerticalFilePaths: List[str]) -> None:
