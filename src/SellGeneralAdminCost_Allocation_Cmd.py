@@ -4851,6 +4851,7 @@ def create_pj_summary_gross_profit_ranking_excel(pszDirectory: str) -> Optional[
         pszText = (pszValue or "").strip()
         return bool(re.fullmatch(r"[+-]?\d+(?:\.\d+)?", pszText))
 
+    iFormatRowIndex: int = 2 if objSheet.max_row >= 2 else 1
     for iRowIndex, objRow in enumerate(objRows, start=1):
         for iColumnIndex, pszValue in enumerate(objRow, start=1):
             objCellValue = parse_tsv_value_for_excel(pszValue)
@@ -4861,11 +4862,14 @@ def create_pj_summary_gross_profit_ranking_excel(pszDirectory: str) -> Optional[
                 and is_numeric_ratio(pszValue)
             ):
                 objCellValue = f"{float(pszValue) * 100:.2f}%"
-            objSheet.cell(
+            objCell = objSheet.cell(
                 row=iRowIndex,
                 column=iColumnIndex,
                 value=objCellValue,
             )
+            if iRowIndex >= 2:
+                objFormatCell = objSheet.cell(row=iFormatRowIndex, column=iColumnIndex)
+                objCell.alignment = copy(objFormatCell.alignment)
     pszTargetDirectory: str = os.path.join(pszDirectory, "PJサマリ")
     os.makedirs(pszTargetDirectory, exist_ok=True)
     pszOutputPath: str = os.path.join(
