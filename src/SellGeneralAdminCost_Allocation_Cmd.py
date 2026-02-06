@@ -4903,23 +4903,29 @@ def create_pj_summary_sales_cost_sg_admin_margin_excel(pszDirectory: str) -> Opt
     if not os.path.isfile(pszTemplatePath):
         return None
     objWorkbook = load_workbook(pszTemplatePath)
+    objTemplateSheet = objWorkbook.worksheets[0]
     for iIndex, pszInputName in enumerate(objCandidates):
         if iIndex < len(objWorkbook.worksheets):
             objSheet = objWorkbook.worksheets[iIndex]
         else:
-            objSheet = objWorkbook.create_sheet()
+            objSheet = objWorkbook.copy_worksheet(objTemplateSheet)
         objSheetNameMatch = objSheetNamePattern.match(pszInputName)
         if objSheetNameMatch:
             objSheet.title = objSheetNameMatch.group(1)
         objRows = read_tsv_rows(os.path.join(pszDirectory, pszInputName))
+        iFormatRowIndex: int = 2 if objSheet.max_row >= 2 else 1
         for iRowIndex, objRow in enumerate(objRows, start=1):
             for iColumnIndex, pszValue in enumerate(objRow, start=1):
                 objCellValue = parse_tsv_value_for_excel(pszValue)
-                objSheet.cell(
+                objCell = objSheet.cell(
                     row=iRowIndex,
                     column=iColumnIndex,
                     value=objCellValue,
                 )
+                if iRowIndex >= 2:
+                    objFormatCell = objSheet.cell(row=iFormatRowIndex, column=iColumnIndex)
+                    if objFormatCell.number_format:
+                        objCell.number_format = objFormatCell.number_format
     pszTargetDirectory: str = os.path.join(pszDirectory, "PJサマリ")
     os.makedirs(pszTargetDirectory, exist_ok=True)
     pszOutputPath: str = os.path.join(
