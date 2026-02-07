@@ -599,7 +599,7 @@ def build_step0005_company_replaced_output_path(
 ) -> Path:
     return (
         objBaseDirectoryPath
-        / f"工数_{iYear}年{iMonth:02d}月_step0005_replace_company_by_org_table.tsv"
+        / f"工数_{iYear}年{iMonth:02d}月_step0005_projects_replaced_by_管轄PJ表.tsv"
     )
 
 
@@ -610,7 +610,7 @@ def build_step0005_missing_project_output_path(
 ) -> Path:
     return (
         objBaseDirectoryPath
-        / f"工数_{iYear}年{iMonth:02d}月_step0005_missing_projects_in_org_table.tsv"
+        / f"工数_{iYear}年{iMonth:02d}月_step0005_projects_missing_in_管轄PJ表.tsv"
     )
 
 
