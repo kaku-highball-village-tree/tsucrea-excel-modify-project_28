@@ -125,6 +125,8 @@ def convert_csv_to_tsv_file(pszInputCsvPath: str) -> str:
         ):
             pszHeaderFirstCell = pszHeaderFirstCell[1:-1]
         objRows[0][0] = pszHeaderFirstCell
+        if len(objRows[0]) >= 4 and objRows[0][3] == "所属グループ名":
+            objRows[0][3] = "所属カンパニー名"
 
     with open(pszOutputTsvPath, mode="w", encoding="utf-8", newline="") as objOutputFile:
         objWriter: csv.writer = csv.writer(objOutputFile, delimiter="\t")
