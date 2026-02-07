@@ -418,8 +418,8 @@ def make_company_normalized_tsv_from_step0002(pszInputFileFullPath: str) -> None
     objCandidateColumns: List[str] = [
         "計上カンパニー名",
         "計上カンパニー",
-        "所属グループ名",
-        "計上グループ名",
+        "所属カンパニー",
+        "所属カンパニー名",
     ]
     pszCompanyColumn: str | None = None
     for pszCandidate in objCandidateColumns:
