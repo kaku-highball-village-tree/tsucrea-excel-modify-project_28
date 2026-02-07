@@ -3857,6 +3857,19 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
                 pszManhour = objColumns[2]
             objSheet10CompanyRows.append((pszProjectName, pszCompanyName, pszManhour))
 
+    objOrgTableStep0005Sheet10CompanyPath: Path = (
+        objTempOrgTableDirectoryPath / "管轄PJ表_step0005_Sheet10Company.tsv"
+    )
+    with open(
+        objOrgTableStep0005Sheet10CompanyPath,
+        "w",
+        encoding="utf-8",
+    ) as objSheet10CompanyExportFile:
+        for pszProjectName, pszCompanyName, pszManhour in objSheet10CompanyRows:
+            objSheet10CompanyExportFile.write(
+                f"{pszProjectName}\t{pszCompanyName}\t{pszManhour}\n",
+            )
+
     objPrefixPatternStep06: re.Pattern[str] = re.compile(r"^(P\d{5}_|[A-OQ-Z]\d{3}_)")
 
     def extract_prefix_and_suffix_step06(pszName: str) -> tuple[str, str]:
