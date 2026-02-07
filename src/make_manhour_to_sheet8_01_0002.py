@@ -383,7 +383,7 @@ def build_step0003_company_normalized_output_path(pszInputFileFullPath: str) -> 
     pszStep0002Suffix: str = "_step0002_removed_uninput_sorted_staff_code"
     if pszRootName.endswith(pszStep0002Suffix):
         pszRootName = pszRootName[: -len(pszStep0002Suffix)]
-    pszOutputBaseName: str = pszRootName + "_step0003_normalized_company_name.tsv"
+    pszOutputBaseName: str = pszRootName + "_step0004_normalized_company_name.tsv"
     if len(pszDirectory) == 0:
         return pszOutputBaseName
     return os.path.join(pszDirectory, pszOutputBaseName)
