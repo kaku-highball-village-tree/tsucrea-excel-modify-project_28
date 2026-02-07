@@ -3730,7 +3730,8 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
                     objRow = [objCell.replace("=match'", "") for objCell in objRow]
                     while objRow and objRow[-1] == "":
                         objRow.pop()
-                    if objRow and objRow[0] != "No":
+                    header_value = objRow[0].lstrip("﻿").strip()
+                    if objRow and header_value != "No":
                         if len(objRow) >= 3:
                             objRow[2] = normalize_org_table_project_code(objRow[2])
                         if len(objRow) >= 2:
@@ -3739,8 +3740,12 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
                                 pszProjectCodePrefix = objRow[2].split("_", 1)[0]
                             pszProjectNameRaw: str = objRow[1]
                             pszProjectNameTrimmed: str = pszProjectNameRaw.strip()
+                            pszProjectNameNormalized: str = normalize_org_table_project_code(pszProjectNameTrimmed)
                             if pszProjectCodePrefix and pszProjectNameTrimmed != pszProjectCodePrefix:
-                                if not pszProjectNameTrimmed.startswith(f"{pszProjectCodePrefix}_"):
+                                if not (
+                                    pszProjectNameTrimmed.startswith(f"{pszProjectCodePrefix}_")
+                                    or pszProjectNameNormalized.startswith(f"{pszProjectCodePrefix}_")
+                                ):
                                     objRow[1] = f"{pszProjectCodePrefix}_{pszProjectNameRaw}"
                             objRow[1] = normalize_org_table_project_code(objRow[1])
                     while objRow and objRow[-1] == "":
