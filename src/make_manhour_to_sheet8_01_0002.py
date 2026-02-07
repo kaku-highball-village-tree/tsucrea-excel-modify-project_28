@@ -259,6 +259,97 @@ def make_removed_uninput_tsv_from_manhour_tsv(pszInputFileFullPath: str) -> None
         return
 
 
+def build_sorted_staff_code_output_path(pszInputFileFullPath: str) -> str:
+    pszDirectory: str = os.path.dirname(pszInputFileFullPath)
+    pszBaseName: str = os.path.basename(pszInputFileFullPath)
+    pszRootName: str
+    pszExt: str
+    pszRootName, pszExt = os.path.splitext(pszBaseName)
+
+    pszStep0001Suffix: str = "_step0001_removed_uninput"
+    if pszRootName.endswith(pszStep0001Suffix):
+        pszRootName = pszRootName[: -len(pszStep0001Suffix)]
+    pszOutputBaseName: str = (
+        pszRootName + "_step0002_removed_uninput_sorted_staff_code.tsv"
+    )
+    if len(pszDirectory) == 0:
+        return pszOutputBaseName
+    return os.path.join(pszDirectory, pszOutputBaseName)
+
+
+def make_sorted_staff_code_tsv_from_manhour_tsv(pszInputFileFullPath: str) -> None:
+    if not os.path.isfile(pszInputFileFullPath):
+        raise FileNotFoundError(f"Input TSV not found: {pszInputFileFullPath}")
+
+    pszOutputFileFullPath: str = build_sorted_staff_code_output_path(pszInputFileFullPath)
+
+    try:
+        objDataFrame: DataFrame = pd.read_csv(
+            pszInputFileFullPath,
+            sep="\t",
+            dtype=str,
+            encoding="utf-8",
+            engine="python",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while reading manhour TSV for staff code sort. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    iColumnCount: int = objDataFrame.shape[1]
+    if iColumnCount < 2:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: staff code column (2nd column) does not exist. ColumnCount = {0}".format(
+                iColumnCount
+            ),
+        )
+        return
+
+    objColumnNameList: List[str] = list(objDataFrame.columns)
+    pszSortColumnName: str = objColumnNameList[1]
+
+    try:
+        objSorted: DataFrame = objDataFrame.copy()
+        objSorted["__sort_staff_code__"] = pd.to_numeric(
+            objSorted[pszSortColumnName],
+            errors="coerce",
+        )
+        objSorted = objSorted.sort_values(
+            by="__sort_staff_code__",
+            ascending=True,
+            kind="mergesort",
+        ).drop(columns=["__sort_staff_code__"])
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while sorting by staff code. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+    try:
+        objSorted.to_csv(
+            pszOutputFileFullPath,
+            sep="\t",
+            index=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while writing sorted staff-code TSV. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+
 def process_single_input(pszInputManhourCsvPath: str) -> int:
     objInputPath: Path = Path(pszInputManhourCsvPath)
     objCandidatePaths: List[Path] = [objInputPath]
@@ -299,6 +390,8 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
         os.replace(pszStep1DefaultTsvPath, pszStep1TsvPath)
 
     make_removed_uninput_tsv_from_manhour_tsv(pszStep1TsvPath)
+    pszStep0001TsvPath: str = build_removed_uninput_output_path(pszStep1TsvPath)
+    make_sorted_staff_code_tsv_from_manhour_tsv(pszStep0001TsvPath)
 
     return 0
 
