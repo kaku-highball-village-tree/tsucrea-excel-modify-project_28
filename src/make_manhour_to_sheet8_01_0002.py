@@ -592,25 +592,36 @@ def normalize_org_table_project_code_step0004(pszProjectCode: str) -> str:
     return re.sub(r"[ \u3000]+", "_", pszNormalized)
 
 
-def build_step0005_company_replaced_output_path(
+def build_step0005_remove_ah_output_path(
     objBaseDirectoryPath: Path,
     iYear: int,
     iMonth: int,
 ) -> Path:
     return (
         objBaseDirectoryPath
-        / f"工数_{iYear}年{iMonth:02d}月_step0005_projects_replaced_by_管轄PJ表.tsv"
+        / f"工数_{iYear}年{iMonth:02d}月_step0005_remove_A_or_H_project.tsv"
     )
 
 
-def build_step0005_missing_project_output_path(
+def build_step0006_company_replaced_output_path(
     objBaseDirectoryPath: Path,
     iYear: int,
     iMonth: int,
 ) -> Path:
     return (
         objBaseDirectoryPath
-        / f"工数_{iYear}年{iMonth:02d}月_step0005_projects_missing_in_管轄PJ表.tsv"
+        / f"工数_{iYear}年{iMonth:02d}月_step0006_projects_replaced_by_管轄PJ表.tsv"
+    )
+
+
+def build_step0006_missing_project_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0006_projects_missing_in_管轄PJ表.tsv"
     )
 
 
@@ -648,6 +659,67 @@ def read_org_table_company_mappings(pszOrgTableTsvPath: str) -> List[Tuple[str, 
         objMappings.append((pszProjectCode, pszCompanyName))
 
     return objMappings
+
+
+def make_step0005_remove_ah_project_tsv(
+    pszInputFileFullPath: str,
+    pszOutputFileFullPath: str,
+) -> None:
+    if not os.path.isfile(pszInputFileFullPath):
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: input TSV file not found for A/H removal. "
+            "Path = {0}".format(pszInputFileFullPath),
+        )
+        return
+
+    try:
+        objDataFrameInput: DataFrame = pd.read_csv(
+            pszInputFileFullPath,
+            sep="\t",
+            dtype=str,
+            encoding="utf-8",
+            keep_default_na=False,
+            engine="python",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while reading TSV for A/H removal. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    if objDataFrameInput.shape[1] < 7:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: required column G does not exist (need at least 7 columns). "
+            "ColumnCount = {0}".format(objDataFrameInput.shape[1]),
+        )
+        return
+
+    objColumnNames: List[str] = list(objDataFrameInput.columns)
+    pszProjectColumn: str = objColumnNames[6]
+
+    objProjectSeries = objDataFrameInput[pszProjectColumn].fillna("").astype(str)
+    objKeepMask = ~objProjectSeries.str.startswith(("A", "H"))
+    objDataFrameOutput: DataFrame = objDataFrameInput.loc[objKeepMask].copy()
+
+    try:
+        objDataFrameOutput.to_csv(
+            pszOutputFileFullPath,
+            sep="\t",
+            index=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while writing A/H removed TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
 
 
 def make_step0005_company_replaced_tsv_from_step0004(
@@ -914,21 +986,30 @@ def main() -> int:
             and objLastStep0004TsvPath is not None
         ):
             objOrgTableTsvPath: Path = objLastBaseDirectoryPath / "管轄PJ表.tsv"
-            objStep0005Path: Path = build_step0005_company_replaced_output_path(
+            objStep0005Path: Path = build_step0005_remove_ah_output_path(
                 objLastBaseDirectoryPath,
                 objLastYear,
                 objLastMonth,
             )
-            objStep0005MissingPath: Path = build_step0005_missing_project_output_path(
+            make_step0005_remove_ah_project_tsv(
+                objLastStep0004TsvPath,
+                str(objStep0005Path),
+            )
+            objStep0006Path: Path = build_step0006_company_replaced_output_path(
+                objLastBaseDirectoryPath,
+                objLastYear,
+                objLastMonth,
+            )
+            objStep0006MissingPath: Path = build_step0006_missing_project_output_path(
                 objLastBaseDirectoryPath,
                 objLastYear,
                 objLastMonth,
             )
             make_step0005_company_replaced_tsv_from_step0004(
-                objLastStep0004TsvPath,
-                str(objOrgTableTsvPath),
                 str(objStep0005Path),
-                str(objStep0005MissingPath),
+                str(objOrgTableTsvPath),
+                str(objStep0006Path),
+                str(objStep0006MissingPath),
             )
 
     return iExitCode
