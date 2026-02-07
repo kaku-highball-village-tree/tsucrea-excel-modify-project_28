@@ -383,19 +383,31 @@ def build_step0003_company_normalized_output_path(pszInputFileFullPath: str) -> 
     pszStep0002Suffix: str = "_step0002_removed_uninput_sorted_staff_code"
     if pszRootName.endswith(pszStep0002Suffix):
         pszRootName = pszRootName[: -len(pszStep0002Suffix)]
+    pszOutputBaseName: str = pszRootName + "_step0003_normalized_company_name.tsv"
+    if len(pszDirectory) == 0:
+        return pszOutputBaseName
+    return os.path.join(pszDirectory, pszOutputBaseName)
+
+
+def build_step0004_company_normalized_output_path(pszInputFileFullPath: str) -> str:
+    pszDirectory: str = os.path.dirname(pszInputFileFullPath)
+    pszBaseName: str = os.path.basename(pszInputFileFullPath)
+    pszRootName: str
+    pszExt: str
+    pszRootName, pszExt = os.path.splitext(pszBaseName)
+
+    pszStep0003Suffix: str = "_step0003_normalized_company_name"
+    if pszRootName.endswith(pszStep0003Suffix):
+        pszRootName = pszRootName[: -len(pszStep0003Suffix)]
     pszOutputBaseName: str = pszRootName + "_step0004_normalized_company_name.tsv"
     if len(pszDirectory) == 0:
         return pszOutputBaseName
     return os.path.join(pszDirectory, pszOutputBaseName)
 
 
-def make_company_normalized_tsv_from_step0002(pszInputFileFullPath: str) -> None:
+def write_company_normalized_tsv(pszInputFileFullPath: str, pszOutputFileFullPath: str) -> None:
     if not os.path.isfile(pszInputFileFullPath):
         raise FileNotFoundError(f"Input TSV not found: {pszInputFileFullPath}")
-
-    pszOutputFileFullPath: str = build_step0003_company_normalized_output_path(
-        pszInputFileFullPath
-    )
 
     try:
         objDataFrame: DataFrame = pd.read_csv(
@@ -409,7 +421,7 @@ def make_company_normalized_tsv_from_step0002(pszInputFileFullPath: str) -> None
     except Exception as objException:
         write_error_tsv(
             pszOutputFileFullPath,
-            "Error: unexpected exception while reading step0002 TSV for company name normalization. "
+            "Error: unexpected exception while reading TSV for company name normalization. "
             "Detail = {0}".format(objException),
         )
         return
@@ -461,10 +473,24 @@ def make_company_normalized_tsv_from_step0002(pszInputFileFullPath: str) -> None
     except Exception as objException:
         write_error_tsv(
             pszOutputFileFullPath,
-            "Error: unexpected exception while writing step0003 normalized TSV. "
+            "Error: unexpected exception while writing normalized TSV. "
             "Detail = {0}".format(objException),
         )
         return
+
+
+def make_company_normalized_tsv_from_step0002(pszInputFileFullPath: str) -> None:
+    pszOutputFileFullPath: str = build_step0003_company_normalized_output_path(
+        pszInputFileFullPath
+    )
+    write_company_normalized_tsv(pszInputFileFullPath, pszOutputFileFullPath)
+
+
+def make_company_normalized_tsv_from_step0003(pszInputFileFullPath: str) -> None:
+    pszOutputFileFullPath: str = build_step0004_company_normalized_output_path(
+        pszInputFileFullPath
+    )
+    write_company_normalized_tsv(pszInputFileFullPath, pszOutputFileFullPath)
 
 
 def process_single_input(pszInputManhourCsvPath: str) -> int:
@@ -511,6 +537,10 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     make_sorted_staff_code_tsv_from_manhour_tsv(pszStep0001TsvPath)
     pszStep0002TsvPath: str = build_sorted_staff_code_output_path(pszStep0001TsvPath)
     make_company_normalized_tsv_from_step0002(pszStep0002TsvPath)
+    pszStep0003TsvPath: str = build_step0003_company_normalized_output_path(
+        pszStep0002TsvPath
+    )
+    make_company_normalized_tsv_from_step0003(pszStep0003TsvPath)
 
     return 0
 
