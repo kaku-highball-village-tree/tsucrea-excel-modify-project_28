@@ -587,7 +587,69 @@ def write_project_normalized_tsv(pszInputFileFullPath: str, pszOutputFileFullPat
         return
 
 
-def process_single_input(pszInputManhourCsvPath: str) -> int:
+def normalize_org_table_project_code_step0004(pszProjectCode: str) -> str:
+    pszNormalized: str = step0004_normalize_project_name(pszProjectCode or "")
+    return re.sub(r"[ \u3000]+", "_", pszNormalized)
+
+
+def write_org_table_tsv_from_csv(objBaseDirectoryPath: Path) -> None:
+    objScriptDirectoryPath: Path = Path(__file__).resolve().parent
+    objOrgTableCsvPath: Path = objScriptDirectoryPath / "管轄PJ表.csv"
+    if not objOrgTableCsvPath.exists():
+        objOrgTableCsvPath = objBaseDirectoryPath / "管轄PJ表.csv"
+
+    objOrgTableTsvPath: Path = objBaseDirectoryPath / "管轄PJ表.tsv"
+
+    if not objOrgTableCsvPath.exists():
+        write_error_tsv(
+            str(objOrgTableTsvPath),
+            "Error: 管轄PJ表.csv が見つかりません。Path = {0}".format(objOrgTableCsvPath),
+        )
+        return
+
+    objRows: List[List[str]] = []
+    arrEncodings: List[str] = ["utf-8-sig", "cp932"]
+    objLastDecodeError: Exception | None = None
+
+    for pszEncoding in arrEncodings:
+        try:
+            with open(
+                objOrgTableCsvPath,
+                mode="r",
+                encoding=pszEncoding,
+                newline="",
+            ) as objInputFile:
+                objReader: csv.reader = csv.reader(objInputFile)
+                for objRow in objReader:
+                    objRows.append(list(objRow))
+            objLastDecodeError = None
+            break
+        except UnicodeDecodeError as objError:
+            objLastDecodeError = objError
+            objRows = []
+
+    if objLastDecodeError is not None:
+        write_error_tsv(
+            str(objOrgTableTsvPath),
+            "Error: unexpected exception while reading 管轄PJ表.csv. Detail = {0}".format(
+                objLastDecodeError
+            ),
+        )
+        return
+
+    for iRowIndex, objRow in enumerate(objRows):
+        if len(objRow) > 1:
+            objRow[1] = normalize_org_table_project_code_step0004(objRow[1])
+        objRows[iRowIndex] = objRow
+
+    objOrgTableTsvPath.parent.mkdir(parents=True, exist_ok=True)
+    with open(objOrgTableTsvPath, mode="w", encoding="utf-8", newline="") as objOutputFile:
+        objWriter: csv.writer = csv.writer(objOutputFile, delimiter="\t")
+        for objRow in objRows:
+            objWriter.writerow(objRow)
+
+
+def process_single_input(pszInputManhourCsvPath: str) -> tuple[int, Path | None]:
     objInputPath: Path = Path(pszInputManhourCsvPath)
     objCandidatePaths: List[Path] = [objInputPath]
 
@@ -636,7 +698,7 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     )
     make_company_normalized_tsv_from_step0003(pszStep0003TsvPath)
 
-    return 0
+    return 0, objBaseDirectoryPath
 
 
 def main() -> int:
@@ -651,7 +713,7 @@ def main() -> int:
     iExitCode: int = 0
     for pszInputManhourCsvPath in objArgs.pszInputManhourCsvPaths:
         try:
-            iResult: int = process_single_input(pszInputManhourCsvPath)
+            iResult, objBaseDirectoryPath = process_single_input(pszInputManhourCsvPath)
         except Exception as objException:
             print(
                 "Error: failed to process input file: {0}. Detail = {1}".format(
@@ -663,6 +725,11 @@ def main() -> int:
             continue
         if iResult != 0:
             iExitCode = 1
+        elif objBaseDirectoryPath is not None:
+            objLastBaseDirectoryPath = objBaseDirectoryPath
+
+    if iExitCode == 0 and "objLastBaseDirectoryPath" in locals():
+        write_org_table_tsv_from_csv(objLastBaseDirectoryPath)
 
     return iExitCode
 
