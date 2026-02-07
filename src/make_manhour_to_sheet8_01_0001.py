@@ -3946,6 +3946,23 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
             objAggregatedCompanyNames[pszProjectName].append(pszCompanyName)
         objAggregatedCompanySeconds[pszProjectName] += iSeconds
 
+    objOrgTableStep0005CompanyNamesPath: Path = (
+        objTempOrgTableDirectoryPath / "管轄PJ表_step0005_CompanyNames.tsv"
+    )
+    with open(
+        objOrgTableStep0005CompanyNamesPath,
+        "w",
+        encoding="utf-8",
+    ) as objCompanyNamesFile:
+        for pszProjectName in objAggregatedCompanyOrder:
+            objCompanyNames = objAggregatedCompanyNames.get(pszProjectName, [])
+            if objCompanyNames:
+                objCompanyNamesFile.write(
+                    pszProjectName + "\t" + "\t".join(objCompanyNames) + "\n",
+                )
+            else:
+                objCompanyNamesFile.write(pszProjectName + "\n")
+
     objIncubationPriority: List[str] = [
         "第一インキュ",
         "第二インキュ",
