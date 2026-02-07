@@ -3730,7 +3730,8 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
                     objRow = [objCell.replace("=match'", "") for objCell in objRow]
                     while objRow and objRow[-1] == "":
                         objRow.pop()
-                    if objRow and objRow[0] != "No":
+                    header_value = objRow[0].lstrip("﻿").strip()
+                    if objRow and header_value != "No":
                         if len(objRow) >= 3:
                             objRow[2] = normalize_org_table_project_code(objRow[2])
                         if len(objRow) >= 2:
