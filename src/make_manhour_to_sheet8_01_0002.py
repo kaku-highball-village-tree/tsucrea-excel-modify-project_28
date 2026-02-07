@@ -12,6 +12,7 @@ make_manhour_to_sheet8_01_0002.py
 
 from __future__ import annotations
 
+import argparse
 import csv
 import os
 import re
@@ -173,12 +174,31 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
 
 
 def main() -> int:
-    if len(sys.argv) < 2:
-        print("Usage: python make_manhour_to_sheet8_01_0002.py <input_manhour_csv>")
-        return 1
+    objParser: argparse.ArgumentParser = argparse.ArgumentParser()
+    objParser.add_argument(
+        "pszInputManhourCsvPaths",
+        nargs="+",
+        help="Input Jobcan manhour CSV file paths",
+    )
+    objArgs: argparse.Namespace = objParser.parse_args()
 
-    pszInputCsvPath: str = sys.argv[1]
-    return process_single_input(pszInputCsvPath)
+    iExitCode: int = 0
+    for pszInputManhourCsvPath in objArgs.pszInputManhourCsvPaths:
+        try:
+            iResult: int = process_single_input(pszInputManhourCsvPath)
+        except Exception as objException:
+            print(
+                "Error: failed to process input file: {0}. Detail = {1}".format(
+                    pszInputManhourCsvPath,
+                    objException,
+                )
+            )
+            iExitCode = 1
+            continue
+        if iResult != 0:
+            iExitCode = 1
+
+    return iExitCode
 
 
 if __name__ == "__main__":
