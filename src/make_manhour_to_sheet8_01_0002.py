@@ -125,6 +125,8 @@ def convert_csv_to_tsv_file(pszInputCsvPath: str) -> str:
         ):
             pszHeaderFirstCell = pszHeaderFirstCell[1:-1]
         objRows[0][0] = pszHeaderFirstCell
+        if len(objRows[0]) >= 4 and objRows[0][3] == "所属グループ名":
+            objRows[0][3] = "所属カンパニー名"
 
     with open(pszOutputTsvPath, mode="w", encoding="utf-8", newline="") as objOutputFile:
         objWriter: csv.writer = csv.writer(objOutputFile, delimiter="\t")
@@ -350,6 +352,121 @@ def make_sorted_staff_code_tsv_from_manhour_tsv(pszInputFileFullPath: str) -> No
         return
 
 
+def step0003_normalize_company_name(pszCompanyName: str) -> str:
+    objReplaceTargets: List[Tuple[str, str]] = [
+        ("本部", "本部"),
+        ("事業開発", "事業開発"),
+        ("子会社", "子会社"),
+        ("投資先", "投資先"),
+        ("第１インキュ", "第一インキュ"),
+        ("第２インキュ", "第二インキュ"),
+        ("第３インキュ", "第三インキュ"),
+        ("第４インキュ", "第四インキュ"),
+        ("第1インキュ", "第一インキュ"),
+        ("第2インキュ", "第二インキュ"),
+        ("第3インキュ", "第三インキュ"),
+        ("第4インキュ", "第四インキュ"),
+    ]
+    for pszPrefix, pszReplacement in objReplaceTargets:
+        if pszCompanyName.startswith(pszPrefix):
+            return pszReplacement
+    return pszCompanyName
+
+
+def build_step0003_company_normalized_output_path(pszInputFileFullPath: str) -> str:
+    pszDirectory: str = os.path.dirname(pszInputFileFullPath)
+    pszBaseName: str = os.path.basename(pszInputFileFullPath)
+    pszRootName: str
+    pszExt: str
+    pszRootName, pszExt = os.path.splitext(pszBaseName)
+
+    pszStep0002Suffix: str = "_step0002_removed_uninput_sorted_staff_code"
+    if pszRootName.endswith(pszStep0002Suffix):
+        pszRootName = pszRootName[: -len(pszStep0002Suffix)]
+    pszOutputBaseName: str = pszRootName + "_step0003_normalized_company_name.tsv"
+    if len(pszDirectory) == 0:
+        return pszOutputBaseName
+    return os.path.join(pszDirectory, pszOutputBaseName)
+
+
+def make_company_normalized_tsv_from_step0002(pszInputFileFullPath: str) -> None:
+    if not os.path.isfile(pszInputFileFullPath):
+        raise FileNotFoundError(f"Input TSV not found: {pszInputFileFullPath}")
+
+    pszOutputFileFullPath: str = build_step0003_company_normalized_output_path(
+        pszInputFileFullPath
+    )
+
+    try:
+        objDataFrame: DataFrame = pd.read_csv(
+            pszInputFileFullPath,
+            sep="\t",
+            dtype=str,
+            encoding="utf-8",
+            keep_default_na=False,
+            engine="python",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while reading step0002 TSV for company name normalization. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    objColumnNameList: List[str] = list(objDataFrame.columns)
+    objCandidateColumns: List[str] = [
+        "計上カンパニー名",
+        "計上カンパニー",
+        "所属カンパニー",
+        "所属カンパニー名",
+    ]
+    pszCompanyColumn: str | None = None
+    for pszCandidate in objCandidateColumns:
+        if pszCandidate in objColumnNameList:
+            pszCompanyColumn = pszCandidate
+            break
+
+    if pszCompanyColumn is None:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: company name column not found. "
+            "Expected one of {0}.".format(", ".join(objCandidateColumns)),
+        )
+        return
+
+    try:
+        objDataFrame[pszCompanyColumn] = (
+            objDataFrame[pszCompanyColumn]
+            .fillna("")
+            .astype(str)
+            .apply(step0003_normalize_company_name)
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while normalizing company name column. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    try:
+        objDataFrame.to_csv(
+            pszOutputFileFullPath,
+            sep="\t",
+            index=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while writing step0003 normalized TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+
 def process_single_input(pszInputManhourCsvPath: str) -> int:
     objInputPath: Path = Path(pszInputManhourCsvPath)
     objCandidatePaths: List[Path] = [objInputPath]
@@ -392,6 +509,8 @@ def process_single_input(pszInputManhourCsvPath: str) -> int:
     make_removed_uninput_tsv_from_manhour_tsv(pszStep1TsvPath)
     pszStep0001TsvPath: str = build_removed_uninput_output_path(pszStep1TsvPath)
     make_sorted_staff_code_tsv_from_manhour_tsv(pszStep0001TsvPath)
+    pszStep0002TsvPath: str = build_sorted_staff_code_output_path(pszStep0001TsvPath)
+    make_company_normalized_tsv_from_step0002(pszStep0002TsvPath)
 
     return 0
 
