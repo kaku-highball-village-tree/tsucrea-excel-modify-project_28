@@ -722,7 +722,7 @@ def make_step0005_remove_ah_project_tsv(
         return
 
 
-def make_step0005_company_replaced_tsv_from_step0004(
+def make_step0006_company_replaced_tsv_from_step0005(
     pszInputFileFullPath: str,
     pszOrgTableTsvPath: str,
     pszOutputFileFullPath: str,
@@ -1005,7 +1005,7 @@ def main() -> int:
                 objLastYear,
                 objLastMonth,
             )
-            make_step0005_company_replaced_tsv_from_step0004(
+            make_step0006_company_replaced_tsv_from_step0005(
                 str(objStep0005Path),
                 str(objOrgTableTsvPath),
                 str(objStep0006Path),
