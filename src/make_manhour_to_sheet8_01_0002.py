@@ -152,7 +152,7 @@ def build_removed_uninput_output_path(pszInputFileFullPath: str) -> str:
     pszExt: str
     pszRootName, pszExt = os.path.splitext(pszBaseName)
 
-    pszOutputBaseName: str = pszRootName + "_removed_uninput.tsv"
+    pszOutputBaseName: str = pszRootName + "_step0001_removed_uninput.tsv"
     if len(pszDirectory) == 0:
         return pszOutputBaseName
     return os.path.join(pszDirectory, pszOutputBaseName)
