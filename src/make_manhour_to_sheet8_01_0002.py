@@ -796,10 +796,11 @@ def make_step0006_company_replaced_tsv_from_step0005(
 
     objDataFrameOutput: DataFrame = objDataFrameInput.copy()
     objDataFrameOutput[pszCompanyColumn] = objCompanyValues
+    objMatchedDataFrame: DataFrame = objDataFrameOutput[[not is_missing for is_missing in objMissingMask]]
     objMissingDataFrame: DataFrame = objDataFrameInput[objMissingMask]
 
     try:
-        objDataFrameOutput.to_csv(
+        objMatchedDataFrame.to_csv(
             pszOutputFileFullPath,
             sep="\t",
             index=False,
