@@ -636,6 +636,17 @@ def build_step0006_unique_missing_project_output_path(
     )
 
 
+def build_step0006_sort_asc_missing_project_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0006_sort_asc_projects_missing_in_管轄PJ表.tsv"
+    )
+
+
 def read_org_table_company_mappings(pszOrgTableTsvPath: str) -> List[Tuple[str, str]]:
     if not os.path.isfile(pszOrgTableTsvPath):
         raise FileNotFoundError(f"Org table TSV not found: {pszOrgTableTsvPath}")
@@ -905,6 +916,67 @@ def make_step0006_unique_missing_project_tsv(
             "Detail = {0}".format(objException),
         )
         return
+
+
+def make_step0006_sort_asc_missing_project_tsv(
+    pszInputFileFullPath: str,
+    pszOutputFileFullPath: str,
+) -> None:
+    if not os.path.isfile(pszInputFileFullPath):
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: input TSV file not found for sorted missing projects. "
+            "Path = {0}".format(pszInputFileFullPath),
+        )
+        return
+
+    try:
+        objDataFrameInput: DataFrame = pd.read_csv(
+            pszInputFileFullPath,
+            sep="\t",
+            dtype=str,
+            encoding="utf-8",
+            keep_default_na=False,
+            engine="python",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while reading unique missing project TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    if objDataFrameInput.shape[1] < 1:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: required project code column does not exist. "
+            "ColumnCount = {0}".format(objDataFrameInput.shape[1]),
+        )
+        return
+
+    try:
+        objColumnNames: List[str] = list(objDataFrameInput.columns)
+        pszProjectColumn: str = objColumnNames[0]
+        objSortedDataFrame: DataFrame = objDataFrameInput.sort_values(
+            by=pszProjectColumn,
+            ascending=True,
+            kind="mergesort",
+        )
+        objSortedDataFrame.to_csv(
+            pszOutputFileFullPath,
+            sep="\t",
+            index=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while writing sorted missing project TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
 def write_org_table_tsv_from_csv(objBaseDirectoryPath: Path) -> None:
     objScriptDirectoryPath: Path = Path(__file__).resolve().parent
     objOrgTableCsvPath: Path = objScriptDirectoryPath / "管轄PJ表.csv"
@@ -1079,6 +1151,13 @@ def main() -> int:
                     iMonth,
                 )
             )
+            objStep0006SortAscMissingPath: Path = (
+                build_step0006_sort_asc_missing_project_output_path(
+                    objBaseDirectoryPath,
+                    iYear,
+                    iMonth,
+                )
+            )
             make_step0006_company_replaced_tsv_from_step0005(
                 str(objStep0005Path),
                 str(objOrgTableTsvPath),
@@ -1088,6 +1167,10 @@ def main() -> int:
             make_step0006_unique_missing_project_tsv(
                 str(objStep0006MissingPath),
                 str(objStep0006UniqueMissingPath),
+            )
+            make_step0006_sort_asc_missing_project_tsv(
+                str(objStep0006UniqueMissingPath),
+                str(objStep0006SortAscMissingPath),
             )
 
     return iExitCode
