@@ -703,6 +703,39 @@ def build_step0008_staff_project_output_path(
     )
 
 
+def build_step0009_project_task_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0009_プロジェクト_タスク_工数.tsv"
+    )
+
+
+def build_step0009_project_staff_company_task_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0009_プロジェクト_スタッフ計上カンパニー名_タスク_工数.tsv"
+    )
+
+
+def build_step0009_project_company_task_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0009_プロジェクト_計上カンパニー名_タスク_工数.tsv"
+    )
+
+
 def normalize_step0007_yyyy_mm_dd_in_value(
     objValue: object,
     objPattern: re.Pattern[str],
@@ -1279,6 +1312,468 @@ def make_step0008_staff_project_tsv(
         )
         return
 
+
+def read_step0009_tsv_with_encoding_candidates(
+    pszInputFileFullPath: str,
+    bHasHeader: bool,
+) -> DataFrame:
+    objEncodingCandidateList: List[str] = ["utf-8-sig", "cp932"]
+    objLastDecodeError: Exception | None = None
+    objDataFrameResult: DataFrame | None = None
+
+    for pszEncoding in objEncodingCandidateList:
+        try:
+            if bHasHeader:
+                objDataFrameResult = pd.read_csv(
+                    pszInputFileFullPath,
+                    sep="\t",
+                    dtype=str,
+                    encoding=pszEncoding,
+                    engine="python",
+                )
+            else:
+                objDataFrameResult = pd.read_csv(
+                    pszInputFileFullPath,
+                    sep="\t",
+                    dtype=str,
+                    header=None,
+                    encoding=pszEncoding,
+                    engine="python",
+                )
+            break
+        except UnicodeDecodeError as objDecodeError:
+            objLastDecodeError = objDecodeError
+            continue
+
+    if objDataFrameResult is None:
+        if objLastDecodeError is not None:
+            raise objLastDecodeError
+        raise UnicodeDecodeError(
+            "utf-8-sig",
+            b"",
+            0,
+            1,
+            "cannot decode TSV with utf-8-sig nor cp932",
+        )
+
+    return objDataFrameResult
+
+
+def convert_step0009_time_string_to_seconds(
+    pszTimeText: str,
+) -> int:
+    if pszTimeText is None:
+        return 0
+
+    pszWork: str = str(pszTimeText).strip()
+    if len(pszWork) == 0:
+        return 0
+
+    objParts: List[str] = pszWork.split(":")
+    try:
+        if len(objParts) == 3:
+            iHour: int = int(objParts[0])
+            iMinute: int = int(objParts[1])
+            iSecond: int = int(objParts[2])
+        elif len(objParts) == 2:
+            iHour = int(objParts[0])
+            iMinute = int(objParts[1])
+            iSecond = 0
+        else:
+            return 0
+    except ValueError:
+        return 0
+
+    return iHour * 3600 + iMinute * 60 + iSecond
+
+
+def convert_step0009_seconds_to_time_string(
+    iTotalSeconds: int,
+) -> str:
+    if iTotalSeconds <= 0:
+        return "0:00:00"
+
+    iHour: int = iTotalSeconds // 3600
+    iRemain: int = iTotalSeconds % 3600
+    iMinute: int = iRemain // 60
+    iSecond: int = iRemain % 60
+
+    return "{0}:{1:02d}:{2:02d}".format(iHour, iMinute, iSecond)
+
+
+def make_step0009_project_task_tsv(
+    pszStep0007FileFullPath: str,
+    pszRangeFileFullPath: str,
+    pszStep0008FileFullPath: str,
+    pszProjectTaskOutputPath: str,
+    pszProjectStaffCompanyOutputPath: str,
+) -> None:
+    pszErrorFileFullPath: str = pszProjectTaskOutputPath.replace(".tsv", "_error.tsv")
+
+    if not os.path.isfile(pszStep0007FileFullPath):
+        write_error_tsv(
+            pszStep0007FileFullPath.replace(".tsv", "_error.tsv"),
+            "Error: step0007 TSV file not found. Path = {0}".format(
+                pszStep0007FileFullPath
+            ),
+        )
+        return
+
+    if not os.path.isfile(pszRangeFileFullPath):
+        write_error_tsv(
+            pszRangeFileFullPath.replace(".tsv", "_error.tsv"),
+            "Error: step0007 staff_code_range TSV file not found. Path = {0}".format(
+                pszRangeFileFullPath
+            ),
+        )
+        return
+
+    if not os.path.isfile(pszStep0008FileFullPath):
+        write_error_tsv(
+            pszStep0008FileFullPath.replace(".tsv", "_error.tsv"),
+            "Error: step0008 TSV file not found. Path = {0}".format(
+                pszStep0008FileFullPath
+            ),
+        )
+        return
+
+    try:
+        objDataFrameSheet4: DataFrame = read_step0009_tsv_with_encoding_candidates(
+            pszStep0007FileFullPath,
+            True,
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: unexpected exception while reading step0007 TSV. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+    objSheet4Columns: List[str] = list(objDataFrameSheet4.columns)
+    if (
+        ("スタッフコード" not in objSheet4Columns)
+        or ("プロジェクト名" not in objSheet4Columns)
+        or ("工数" not in objSheet4Columns)
+    ):
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: required columns not found in step0007 TSV. "
+            "Required columns: スタッフコード, プロジェクト名, 工数. "
+            "Columns = {0}".format(", ".join(objSheet4Columns)),
+        )
+        return
+
+    pszCompanyColumn: str = ""
+    if "計上カンパニー名" in objSheet4Columns:
+        pszCompanyColumn = "計上カンパニー名"
+    elif "計上カンパニー" in objSheet4Columns:
+        pszCompanyColumn = "計上カンパニー"
+    elif "所属カンパニー名" in objSheet4Columns:
+        pszCompanyColumn = "所属カンパニー名"
+    elif "所属カンパニー" in objSheet4Columns:
+        pszCompanyColumn = "所属カンパニー"
+    elif "所属グループ名" in objSheet4Columns:
+        pszCompanyColumn = "所属グループ名"
+    elif "所属グループ" in objSheet4Columns:
+        pszCompanyColumn = "所属グループ"
+
+    try:
+        objDataFrameSheet4 = objDataFrameSheet4.copy()
+        objDataFrameSheet4["__time_seconds__"] = objDataFrameSheet4["工数"].apply(
+            lambda pszValue: convert_step0009_time_string_to_seconds(pszValue),
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: unexpected exception while converting time text to seconds. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+    iSheet4RowCount: int = objDataFrameSheet4.shape[0]
+
+    try:
+        objDataFrameRange: DataFrame = read_step0009_tsv_with_encoding_candidates(
+            pszRangeFileFullPath,
+            True,
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: unexpected exception while reading step0007 staff_code_range TSV. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+    if objDataFrameRange.shape[1] < 3:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: step0007 staff_code_range TSV must have at least 3 columns "
+            "(staff_code, start_row, end_row).",
+        )
+        return
+
+    try:
+        objDataFrameRange = objDataFrameRange.copy()
+        objDataFrameRange["__start_row_excel__"] = pd.to_numeric(
+            objDataFrameRange.iloc[:, 1],
+            errors="coerce",
+        )
+        objDataFrameRange["__end_row_excel__"] = pd.to_numeric(
+            objDataFrameRange.iloc[:, 2],
+            errors="coerce",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: unexpected exception while converting start/end rows to numeric. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+    if objDataFrameRange["__start_row_excel__"].isna().any() or objDataFrameRange[
+        "__end_row_excel__"
+    ].isna().any():
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: start_row or end_row contains non-numeric value in step0007 staff_code_range TSV.",
+        )
+        return
+
+    objDictStaffCodeToRange: dict[str, Tuple[int, int]] = {}
+    for _, objRow in objDataFrameRange.iterrows():
+        pszStaffCodeRange: str = str(objRow.iloc[0]).strip()
+        if len(pszStaffCodeRange) == 0:
+            continue
+
+        iStartRowExcel: int = int(objRow["__start_row_excel__"])
+        iEndRowExcel: int = int(objRow["__end_row_excel__"])
+
+        iStartIndex: int = iStartRowExcel - 2
+        iEndIndex: int = iEndRowExcel - 2
+
+        if (
+            (iStartIndex < 0)
+            or (iEndIndex < 0)
+            or (iStartIndex > iEndIndex)
+            or (iEndIndex >= iSheet4RowCount)
+        ):
+            write_error_tsv(
+                pszErrorFileFullPath,
+                "Error: invalid row range for staff code {0}. "
+                "StartExcel={1}, EndExcel={2}, StartIndex={3}, EndIndex={4}, Sheet4RowCount={5}".format(
+                    pszStaffCodeRange,
+                    iStartRowExcel,
+                    iEndRowExcel,
+                    iStartIndex,
+                    iEndIndex,
+                    iSheet4RowCount,
+                ),
+            )
+            return
+
+        if pszStaffCodeRange not in objDictStaffCodeToRange:
+            objDictStaffCodeToRange[pszStaffCodeRange] = (iStartIndex, iEndIndex)
+
+    try:
+        objDataFrameSheet6: DataFrame = read_step0009_tsv_with_encoding_candidates(
+            pszStep0008FileFullPath,
+            False,
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: unexpected exception while reading step0008 TSV. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+    if objDataFrameSheet6.shape[0] < 2:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: step0008 TSV must have at least 2 rows (1st: index, 2nd: staff_code).",
+        )
+        return
+
+    iSheet6RowCount: int = objDataFrameSheet6.shape[0]
+    iSheet6ColumnCount: int = objDataFrameSheet6.shape[1]
+
+    objListStaffCodeFromSheet6: List[str] = []
+    for iColumnIndex in range(iSheet6ColumnCount):
+        pszStaffCodeFromSheet6: str = ""
+        objValue = objDataFrameSheet6.iat[1, iColumnIndex]
+        if objValue is not None:
+            pszStaffCodeFromSheet6 = str(objValue).strip()
+        if len(pszStaffCodeFromSheet6) == 0:
+            continue
+        objListStaffCodeFromSheet6.append(pszStaffCodeFromSheet6)
+
+    objListOutputRowsProjectTask: List[List[str]] = []
+    objListOutputRowsProjectStaffCompany: List[List[str]] = []
+
+    for pszStaffCode in objListStaffCodeFromSheet6:
+        if pszStaffCode in objDictStaffCodeToRange:
+            iStartIndex, iEndIndex = objDictStaffCodeToRange[pszStaffCode]
+            objDataFrameSubStaff: DataFrame = objDataFrameSheet4.iloc[
+                iStartIndex : iEndIndex + 1
+            ]
+            objDataFrameSubStaff = objDataFrameSubStaff[
+                objDataFrameSubStaff["スタッフコード"] == pszStaffCode
+            ]
+        else:
+            objDataFrameSubStaff = objDataFrameSheet4[
+                objDataFrameSheet4["スタッフコード"] == pszStaffCode
+            ]
+
+        if objDataFrameSubStaff.empty:
+            continue
+
+        for iColumnIndex in range(iSheet6ColumnCount):
+            objValueStaffCodeAtColumn = objDataFrameSheet6.iat[1, iColumnIndex]
+            pszStaffCodeAtColumn: str = ""
+            if objValueStaffCodeAtColumn is not None:
+                pszStaffCodeAtColumn = str(objValueStaffCodeAtColumn).strip()
+            if pszStaffCodeAtColumn != pszStaffCode:
+                continue
+
+            for iRowIndex in range(2, iSheet6RowCount):
+                objValueProject = objDataFrameSheet6.iat[iRowIndex, iColumnIndex]
+                pszProjectNameFromSheet6: str = ""
+                if objValueProject is not None:
+                    pszProjectNameFromSheet6 = str(objValueProject).strip()
+                if len(pszProjectNameFromSheet6) == 0:
+                    continue
+
+                objDataFrameSubProject: DataFrame = objDataFrameSubStaff[
+                    objDataFrameSubStaff["プロジェクト名"] == pszProjectNameFromSheet6
+                ]
+
+                if objDataFrameSubProject.empty:
+                    continue
+
+                try:
+                    iTotalSeconds: int = int(
+                        objDataFrameSubProject["__time_seconds__"].sum()
+                    )
+                except Exception:
+                    iTotalSeconds = 0
+
+                pszTimeTotal: str = convert_step0009_seconds_to_time_string(
+                    iTotalSeconds
+                )
+                pszCompanyName: str = ""
+                if pszCompanyColumn != "":
+                    try:
+                        objCompanySeries = objDataFrameSubProject[pszCompanyColumn].dropna()
+                        if not objCompanySeries.empty:
+                            pszCompanyName = str(objCompanySeries.iloc[0])
+                    except Exception:
+                        pszCompanyName = ""
+
+                objListOutputRowsProjectTask.append(
+                    [pszProjectNameFromSheet6, pszStaffCode, pszTimeTotal],
+                )
+                objListOutputRowsProjectStaffCompany.append(
+                    [pszProjectNameFromSheet6, pszCompanyName, pszStaffCode, pszTimeTotal],
+                )
+
+            break
+
+    try:
+        objDataFrameOutputProjectTask: DataFrame = DataFrame(
+            objListOutputRowsProjectTask
+        )
+        objDataFrameOutputProjectTask.to_csv(
+            pszProjectTaskOutputPath,
+            sep="\t",
+            index=False,
+            header=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: unexpected exception while writing step0009 project task TSV. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+    try:
+        objDataFrameOutputProjectStaffCompany: DataFrame = DataFrame(
+            objListOutputRowsProjectStaffCompany
+        )
+        objDataFrameOutputProjectStaffCompany.to_csv(
+            pszProjectStaffCompanyOutputPath,
+            sep="\t",
+            index=False,
+            header=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszErrorFileFullPath,
+            "Error: unexpected exception while writing step0009 project staff-company TSV. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
+
+def normalize_step0009_company_name(pszCompanyName: str) -> str:
+    objReplaceTargets: List[Tuple[str, str]] = [
+        ("本部", "本部"),
+        ("事業開発", "事業開発"),
+        ("子会社", "子会社"),
+        ("投資先", "投資先"),
+        ("第１インキュ", "第一インキュ"),
+        ("第２インキュ", "第二インキュ"),
+        ("第３インキュ", "第三インキュ"),
+        ("第４インキュ", "第四インキュ"),
+        ("第1インキュ", "第一インキュ"),
+        ("第2インキュ", "第二インキュ"),
+        ("第3インキュ", "第三インキュ"),
+        ("第4インキュ", "第四インキュ"),
+    ]
+    for pszPrefix, pszReplacement in objReplaceTargets:
+        if pszCompanyName.startswith(pszPrefix):
+            return pszReplacement
+    return pszCompanyName
+
+
+def make_step0009_project_company_task_tsv(
+    pszProjectStaffCompanyPath: str,
+    pszProjectCompanyPath: str,
+) -> None:
+    try:
+        with open(pszProjectStaffCompanyPath, "r", encoding="utf-8") as objInputFile:
+            with open(pszProjectCompanyPath, "w", encoding="utf-8") as objOutputFile:
+                for pszLine in objInputFile:
+                    pszLineContent = pszLine.rstrip("\n")
+                    if pszLineContent == "":
+                        objOutputFile.write("\n")
+                        continue
+                    objColumns = pszLineContent.split("\t")
+                    if len(objColumns) > 1:
+                        objColumns[1] = normalize_step0009_company_name(objColumns[1])
+                    objOutputFile.write("\t".join(objColumns) + "\n")
+    except Exception as objException:
+        write_error_tsv(
+            pszProjectCompanyPath,
+            "Error: unexpected exception while writing step0009 company task TSV. Detail = {0}".format(
+                objException
+            ),
+        )
+        return
+
 def read_org_table_company_mappings(pszOrgTableTsvPath: str) -> List[Tuple[str, str]]:
     if not os.path.isfile(pszOrgTableTsvPath):
         raise FileNotFoundError(f"Org table TSV not found: {pszOrgTableTsvPath}")
@@ -1819,6 +2314,36 @@ def main() -> int:
                 str(objStep0007Path),
                 str(objStep0007StaffRangePath),
                 str(objStep0008Path),
+            )
+            objStep0009ProjectTaskPath: Path = build_step0009_project_task_output_path(
+                objBaseDirectoryPath,
+                iYear,
+                iMonth,
+            )
+            objStep0009ProjectStaffCompanyPath: Path = (
+                build_step0009_project_staff_company_task_output_path(
+                    objBaseDirectoryPath,
+                    iYear,
+                    iMonth,
+                )
+            )
+            objStep0009ProjectCompanyPath: Path = (
+                build_step0009_project_company_task_output_path(
+                    objBaseDirectoryPath,
+                    iYear,
+                    iMonth,
+                )
+            )
+            make_step0009_project_task_tsv(
+                str(objStep0007Path),
+                str(objStep0007StaffRangePath),
+                str(objStep0008Path),
+                str(objStep0009ProjectTaskPath),
+                str(objStep0009ProjectStaffCompanyPath),
+            )
+            make_step0009_project_company_task_tsv(
+                str(objStep0009ProjectStaffCompanyPath),
+                str(objStep0009ProjectCompanyPath),
             )
             make_step0006_unique_missing_project_tsv(
                 str(objStep0006MissingPath),
