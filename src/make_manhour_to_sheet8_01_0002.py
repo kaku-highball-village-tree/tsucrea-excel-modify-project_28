@@ -722,7 +722,7 @@ def make_step0005_remove_ah_project_tsv(
         return
 
 
-def make_step0005_company_replaced_tsv_from_step0004(
+def make_step0006_company_replaced_tsv_from_step0005(
     pszInputFileFullPath: str,
     pszOrgTableTsvPath: str,
     pszOutputFileFullPath: str,
@@ -784,7 +784,7 @@ def make_step0005_company_replaced_tsv_from_step0004(
         pszProjectCode: str = str(objRow[pszProjectColumn] or "")
         pszNewCompany: str | None = None
         for pszOrgProjectCode, pszOrgCompanyName in objMappings:
-            if pszOrgProjectCode != "" and pszProjectCode.startswith(pszOrgProjectCode):
+            if pszOrgProjectCode != "" and pszOrgProjectCode.startswith(pszProjectCode):
                 pszNewCompany = pszOrgCompanyName
                 break
         if pszNewCompany is None:
@@ -969,43 +969,34 @@ def main() -> int:
             continue
         if iResult != 0:
             iExitCode = 1
-        elif objBaseDirectoryPath is not None:
-            objLastBaseDirectoryPath = objBaseDirectoryPath
-            objLastYear = iYear
-            objLastMonth = iMonth
-            objLastStep0004TsvPath = pszStep0004TsvPath
-
-    if iExitCode == 0 and "objLastBaseDirectoryPath" in locals():
-        write_org_table_tsv_from_csv(objLastBaseDirectoryPath)
-        if (
-            "objLastYear" in locals()
-            and "objLastMonth" in locals()
-            and "objLastStep0004TsvPath" in locals()
-            and objLastYear is not None
-            and objLastMonth is not None
-            and objLastStep0004TsvPath is not None
+        elif (
+            objBaseDirectoryPath is not None
+            and iYear is not None
+            and iMonth is not None
+            and pszStep0004TsvPath is not None
         ):
-            objOrgTableTsvPath: Path = objLastBaseDirectoryPath / "管轄PJ表.tsv"
+            write_org_table_tsv_from_csv(objBaseDirectoryPath)
+            objOrgTableTsvPath: Path = objBaseDirectoryPath / "管轄PJ表.tsv"
             objStep0005Path: Path = build_step0005_remove_ah_output_path(
-                objLastBaseDirectoryPath,
-                objLastYear,
-                objLastMonth,
+                objBaseDirectoryPath,
+                iYear,
+                iMonth,
             )
             make_step0005_remove_ah_project_tsv(
-                objLastStep0004TsvPath,
+                pszStep0004TsvPath,
                 str(objStep0005Path),
             )
             objStep0006Path: Path = build_step0006_company_replaced_output_path(
-                objLastBaseDirectoryPath,
-                objLastYear,
-                objLastMonth,
+                objBaseDirectoryPath,
+                iYear,
+                iMonth,
             )
             objStep0006MissingPath: Path = build_step0006_missing_project_output_path(
-                objLastBaseDirectoryPath,
-                objLastYear,
-                objLastMonth,
+                objBaseDirectoryPath,
+                iYear,
+                iMonth,
             )
-            make_step0005_company_replaced_tsv_from_step0004(
+            make_step0006_company_replaced_tsv_from_step0005(
                 str(objStep0005Path),
                 str(objOrgTableTsvPath),
                 str(objStep0006Path),
