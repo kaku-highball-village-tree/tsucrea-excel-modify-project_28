@@ -784,7 +784,7 @@ def make_step0006_company_replaced_tsv_from_step0005(
         pszProjectCode: str = str(objRow[pszProjectColumn] or "")
         pszNewCompany: str | None = None
         for pszOrgProjectCode, pszOrgCompanyName in objMappings:
-            if pszOrgProjectCode != "" and pszProjectCode.startswith(pszOrgProjectCode):
+            if pszOrgProjectCode != "" and pszOrgProjectCode.startswith(pszProjectCode):
                 pszNewCompany = pszOrgCompanyName
                 break
         if pszNewCompany is None:
