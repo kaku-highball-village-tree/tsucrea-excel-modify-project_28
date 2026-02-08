@@ -592,6 +592,366 @@ def normalize_org_table_project_code_step0004(pszProjectCode: str) -> str:
     return re.sub(r"[ \u3000]+", "_", pszNormalized)
 
 
+def build_step0005_remove_ah_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0005_remove_A_or_H_project.tsv"
+    )
+
+
+def build_step0006_company_replaced_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0006_projects_replaced_by_管轄PJ表.tsv"
+    )
+
+
+def build_step0006_missing_project_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0006_projects_missing_in_管轄PJ表.tsv"
+    )
+
+
+def build_step0010_project_manhour_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0010_計算前_プロジェクト_工数.tsv"
+    )
+
+
+def build_step0010_company_manhour_output_path(
+    objBaseDirectoryPath: Path,
+    iYear: int,
+    iMonth: int,
+) -> Path:
+    return (
+        objBaseDirectoryPath
+        / f"工数_{iYear}年{iMonth:02d}月_step0010_計算前_プロジェクト_計上カンパニー名_工数.tsv"
+    )
+
+
+def read_org_table_company_mappings(pszOrgTableTsvPath: str) -> List[Tuple[str, str]]:
+    if not os.path.isfile(pszOrgTableTsvPath):
+        raise FileNotFoundError(f"Org table TSV not found: {pszOrgTableTsvPath}")
+
+    objMappings: List[Tuple[str, str]] = []
+    try:
+        objOrgDataFrame: DataFrame = pd.read_csv(
+            pszOrgTableTsvPath,
+            sep="\t",
+            dtype=str,
+            encoding="utf-8",
+            keep_default_na=False,
+            engine="python",
+        )
+    except Exception as objException:
+        raise RuntimeError(
+            "Error: unexpected exception while reading 管轄PJ表.tsv. Detail = {0}".format(
+                objException
+            )
+        ) from objException
+
+    if objOrgDataFrame.shape[1] < 3:
+        raise ValueError("Error: 管轄PJ表.tsv must have at least 3 columns.")
+
+    objColumnNames: List[str] = list(objOrgDataFrame.columns)
+    pszProjectColumn: str = objColumnNames[1]
+    pszCompanyColumn: str = objColumnNames[2]
+
+    for _, objRow in objOrgDataFrame.iterrows():
+        pszProjectCode: str = str(objRow[pszProjectColumn] or "")
+        pszCompanyName: str = str(objRow[pszCompanyColumn] or "")
+        objMappings.append((pszProjectCode, pszCompanyName))
+
+    return objMappings
+
+
+def make_step0005_remove_ah_project_tsv(
+    pszInputFileFullPath: str,
+    pszOutputFileFullPath: str,
+) -> None:
+    if not os.path.isfile(pszInputFileFullPath):
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: input TSV file not found for A/H removal. "
+            "Path = {0}".format(pszInputFileFullPath),
+        )
+        return
+
+    try:
+        objDataFrameInput: DataFrame = pd.read_csv(
+            pszInputFileFullPath,
+            sep="\t",
+            dtype=str,
+            encoding="utf-8",
+            keep_default_na=False,
+            engine="python",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while reading TSV for A/H removal. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    if objDataFrameInput.shape[1] < 7:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: required column G does not exist (need at least 7 columns). "
+            "ColumnCount = {0}".format(objDataFrameInput.shape[1]),
+        )
+        return
+
+    objColumnNames: List[str] = list(objDataFrameInput.columns)
+    pszProjectColumn: str = objColumnNames[6]
+
+    objProjectSeries = objDataFrameInput[pszProjectColumn].fillna("").astype(str)
+    objKeepMask = ~objProjectSeries.str.startswith(("A", "H"))
+    objDataFrameOutput: DataFrame = objDataFrameInput.loc[objKeepMask].copy()
+
+    try:
+        objDataFrameOutput.to_csv(
+            pszOutputFileFullPath,
+            sep="\t",
+            index=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while writing A/H removed TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+
+def make_step0005_company_replaced_tsv_from_step0004(
+    pszInputFileFullPath: str,
+    pszOrgTableTsvPath: str,
+    pszOutputFileFullPath: str,
+    pszMissingOutputFileFullPath: str,
+) -> None:
+    if not os.path.isfile(pszInputFileFullPath):
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: input TSV file not found for company replacement. "
+            "Path = {0}".format(pszInputFileFullPath),
+        )
+        return
+
+
+def make_step0010_project_manhour_tsv(
+    pszInputProjectTaskPath: str,
+    pszOutputProjectManhourPath: str,
+) -> None:
+    if not os.path.isfile(pszInputProjectTaskPath):
+        write_error_tsv(
+            pszOutputProjectManhourPath,
+            "Error: input TSV file not found for project manhour extraction. "
+            "Path = {0}".format(pszInputProjectTaskPath),
+        )
+        return
+
+    try:
+        with open(pszInputProjectTaskPath, "r", encoding="utf-8") as objInputFile:
+            objLines: List[str] = objInputFile.readlines()
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputProjectManhourPath,
+            "Error: unexpected exception while reading project task TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    try:
+        with open(pszOutputProjectManhourPath, "w", encoding="utf-8") as objOutputFile:
+            for pszLine in objLines:
+                pszLineContent: str = pszLine.rstrip("\n")
+                if pszLineContent == "":
+                    objOutputFile.write("\t\n")
+                    continue
+                objColumns: List[str] = pszLineContent.split("\t")
+                pszProjectName: str = objColumns[0] if len(objColumns) > 0 else ""
+                if len(objColumns) > 2:
+                    pszManhour = objColumns[2]
+                elif len(objColumns) > 1:
+                    pszManhour = objColumns[1]
+                else:
+                    pszManhour = ""
+                objOutputFile.write(pszProjectName + "\t" + pszManhour + "\n")
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputProjectManhourPath,
+            "Error: unexpected exception while writing project manhour TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+
+def make_step0010_company_manhour_tsv(
+    pszInputCompanyTaskPath: str,
+    pszOutputCompanyManhourPath: str,
+) -> None:
+    if not os.path.isfile(pszInputCompanyTaskPath):
+        write_error_tsv(
+            pszOutputCompanyManhourPath,
+            "Error: input TSV file not found for company manhour extraction. "
+            "Path = {0}".format(pszInputCompanyTaskPath),
+        )
+        return
+
+    try:
+        with open(pszInputCompanyTaskPath, "r", encoding="utf-8") as objInputFile:
+            objLines: List[str] = objInputFile.readlines()
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputCompanyManhourPath,
+            "Error: unexpected exception while reading company task TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    try:
+        with open(pszOutputCompanyManhourPath, "w", encoding="utf-8") as objOutputFile:
+            for pszLine in objLines:
+                pszLineContent: str = pszLine.rstrip("\n")
+                if pszLineContent == "":
+                    objOutputFile.write("\t\t\n")
+                    continue
+                objColumns: List[str] = pszLineContent.split("\t")
+                pszProjectName: str = objColumns[0] if len(objColumns) > 0 else ""
+                pszCompanyName: str = objColumns[1] if len(objColumns) > 1 else ""
+                if len(objColumns) > 3:
+                    pszManhour = objColumns[3]
+                elif len(objColumns) > 2:
+                    pszManhour = objColumns[2]
+                elif len(objColumns) > 1:
+                    pszManhour = objColumns[1]
+                else:
+                    pszManhour = ""
+                objOutputFile.write(
+                    pszProjectName + "\t" + pszCompanyName + "\t" + pszManhour + "\n"
+                )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputCompanyManhourPath,
+            "Error: unexpected exception while writing company manhour TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    try:
+        objDataFrameInput: DataFrame = pd.read_csv(
+            pszInputFileFullPath,
+            sep="\t",
+            dtype=str,
+            encoding="utf-8",
+            keep_default_na=False,
+            engine="python",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while reading TSV for company replacement. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    if objDataFrameInput.shape[1] < 7:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: required columns D/G do not exist (need at least 7 columns). "
+            "ColumnCount = {0}".format(objDataFrameInput.shape[1]),
+        )
+        return
+
+    try:
+        objMappings: List[Tuple[str, str]] = read_org_table_company_mappings(
+            pszOrgTableTsvPath
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while reading org table TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    objColumnNames: List[str] = list(objDataFrameInput.columns)
+    pszCompanyColumn: str = objColumnNames[3]
+    pszProjectColumn: str = objColumnNames[6]
+
+    objCompanyValues: List[str] = []
+    objMissingMask: List[bool] = []
+
+    for _, objRow in objDataFrameInput.iterrows():
+        pszProjectCode: str = str(objRow[pszProjectColumn] or "")
+        pszNewCompany: str | None = None
+        for pszOrgProjectCode, pszOrgCompanyName in objMappings:
+            if pszOrgProjectCode != "" and pszProjectCode.startswith(pszOrgProjectCode):
+                pszNewCompany = pszOrgCompanyName
+                break
+        if pszNewCompany is None:
+            objCompanyValues.append(str(objRow[pszCompanyColumn] or ""))
+            objMissingMask.append(True)
+        else:
+            objCompanyValues.append(pszNewCompany)
+            objMissingMask.append(False)
+
+    objDataFrameOutput: DataFrame = objDataFrameInput.copy()
+    objDataFrameOutput[pszCompanyColumn] = objCompanyValues
+    objMissingDataFrame: DataFrame = objDataFrameInput[objMissingMask]
+
+    try:
+        objDataFrameOutput.to_csv(
+            pszOutputFileFullPath,
+            sep="\t",
+            index=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszOutputFileFullPath,
+            "Error: unexpected exception while writing company replaced TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
+
+    try:
+        objMissingDataFrame.to_csv(
+            pszMissingOutputFileFullPath,
+            sep="\t",
+            index=False,
+            encoding="utf-8",
+            lineterminator="\n",
+        )
+    except Exception as objException:
+        write_error_tsv(
+            pszMissingOutputFileFullPath,
+            "Error: unexpected exception while writing missing project list TSV. "
+            "Detail = {0}".format(objException),
+        )
+        return
 def write_org_table_tsv_from_csv(objBaseDirectoryPath: Path) -> None:
     objScriptDirectoryPath: Path = Path(__file__).resolve().parent
     objOrgTableCsvPath: Path = objScriptDirectoryPath / "管轄PJ表.csv"
@@ -649,7 +1009,9 @@ def write_org_table_tsv_from_csv(objBaseDirectoryPath: Path) -> None:
             objWriter.writerow(objRow)
 
 
-def process_single_input(pszInputManhourCsvPath: str) -> tuple[int, Path | None]:
+def process_single_input(
+    pszInputManhourCsvPath: str,
+) -> tuple[int, Path | None, int | None, int | None, str | None]:
     objInputPath: Path = Path(pszInputManhourCsvPath)
     objCandidatePaths: List[Path] = [objInputPath]
 
@@ -697,8 +1059,11 @@ def process_single_input(pszInputManhourCsvPath: str) -> tuple[int, Path | None]
         pszStep0002TsvPath
     )
     make_company_normalized_tsv_from_step0003(pszStep0003TsvPath)
+    pszStep0004TsvPath: str = build_step0004_company_normalized_output_path(
+        pszStep0003TsvPath
+    )
 
-    return 0, objBaseDirectoryPath
+    return 0, objBaseDirectoryPath, iFileYear, iFileMonth, pszStep0004TsvPath
 
 
 def main() -> int:
@@ -713,7 +1078,9 @@ def main() -> int:
     iExitCode: int = 0
     for pszInputManhourCsvPath in objArgs.pszInputManhourCsvPaths:
         try:
-            iResult, objBaseDirectoryPath = process_single_input(pszInputManhourCsvPath)
+            iResult, objBaseDirectoryPath, iYear, iMonth, pszStep0004TsvPath = (
+                process_single_input(pszInputManhourCsvPath)
+            )
         except Exception as objException:
             print(
                 "Error: failed to process input file: {0}. Detail = {1}".format(
@@ -727,9 +1094,75 @@ def main() -> int:
             iExitCode = 1
         elif objBaseDirectoryPath is not None:
             objLastBaseDirectoryPath = objBaseDirectoryPath
+            objLastYear = iYear
+            objLastMonth = iMonth
+            objLastStep0004TsvPath = pszStep0004TsvPath
 
     if iExitCode == 0 and "objLastBaseDirectoryPath" in locals():
         write_org_table_tsv_from_csv(objLastBaseDirectoryPath)
+        if (
+            "objLastYear" in locals()
+            and "objLastMonth" in locals()
+            and "objLastStep0004TsvPath" in locals()
+            and objLastYear is not None
+            and objLastMonth is not None
+            and objLastStep0004TsvPath is not None
+        ):
+            objOrgTableTsvPath: Path = objLastBaseDirectoryPath / "管轄PJ表.tsv"
+            objStep0005Path: Path = build_step0005_remove_ah_output_path(
+                objLastBaseDirectoryPath,
+                objLastYear,
+                objLastMonth,
+            )
+            make_step0005_remove_ah_project_tsv(
+                objLastStep0004TsvPath,
+                str(objStep0005Path),
+            )
+            objStep0006Path: Path = build_step0006_company_replaced_output_path(
+                objLastBaseDirectoryPath,
+                objLastYear,
+                objLastMonth,
+            )
+            objStep0006MissingPath: Path = build_step0006_missing_project_output_path(
+                objLastBaseDirectoryPath,
+                objLastYear,
+                objLastMonth,
+            )
+            make_step0005_company_replaced_tsv_from_step0004(
+                str(objStep0005Path),
+                str(objOrgTableTsvPath),
+                str(objStep0006Path),
+                str(objStep0006MissingPath),
+            )
+
+            objStep0009ProjectTaskPath: Path = (
+                objLastBaseDirectoryPath
+                / f"工数_{objLastYear}年{objLastMonth:02d}月_step0009_プロジェクト_タスク_工数.tsv"
+            )
+            objStep0009CompanyTaskPath: Path = (
+                objLastBaseDirectoryPath
+                / f"工数_{objLastYear}年{objLastMonth:02d}月_step0009_プロジェクト_計上カンパニー名_タスク_工数.tsv"
+            )
+            objStep0010ProjectPath: Path = build_step0010_project_manhour_output_path(
+                objLastBaseDirectoryPath,
+                objLastYear,
+                objLastMonth,
+            )
+            objStep0010CompanyPath: Path = build_step0010_company_manhour_output_path(
+                objLastBaseDirectoryPath,
+                objLastYear,
+                objLastMonth,
+            )
+            if objStep0009ProjectTaskPath.exists():
+                make_step0010_project_manhour_tsv(
+                    str(objStep0009ProjectTaskPath),
+                    str(objStep0010ProjectPath),
+                )
+            if objStep0009CompanyTaskPath.exists():
+                make_step0010_company_manhour_tsv(
+                    str(objStep0009CompanyTaskPath),
+                    str(objStep0010CompanyPath),
+                )
 
     return iExitCode
 
